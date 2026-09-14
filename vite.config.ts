@@ -19,7 +19,5 @@ export default defineConfig({
   ],
   test: {
     include: ['tests/**/*.test.ts'],
-    // M1 でテストが入るまでは 0 件でも成功扱いにする
-    passWithNoTests: true,
   },
 });
