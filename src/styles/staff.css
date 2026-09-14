@@ -1,4 +1,18 @@
 /* 五線譜（SPEC 5.4）。色は base.css のテーマ変数で決める */
+
+/* 音部記号・臨時記号は SMuFL フォント Bravura（SIL OFL 1.1、public/fonts/OFL.txt）のグリフで描く。
+   オフラインでも使えるようローカルのファイルを読み込み、読み込むまでは代替フォントで誤表示しないよう block にする */
+@font-face {
+  font-family: 'Bravura';
+  src: url('/fonts/Bravura.woff2') format('woff2');
+  font-display: block;
+}
+
+.staff .glyph {
+  font-family: 'Bravura';
+  fill: currentColor;
+}
+
 .staff {
   display: block;
   width: 100%;

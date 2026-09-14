@@ -1,4 +1,5 @@
-// 五線譜 SVG の自前生成（SPEC 5章）。記譜ライブラリ・音楽フォントは使わず、記号もすべて独自のパスで描く。
+// 五線譜 SVG の生成（SPEC 5章）。記譜ライブラリは使わない。
+// 音部記号・調号・臨時記号・符頭は SMuFL フォント Bravura のグリフ、符幹・五線・加線は自前のパスで描く。
 import type { Clef } from '../data/instruments.ts';
 import type { ScaleEntry } from '../data/scales.ts';
 import { accidentalMarks, type AccidentalMark } from '../music/accidentals.ts';
@@ -20,7 +21,7 @@ export interface StaveOptions {
   width?: number;
 }
 
-/** 五線の線間隔（SVG 単位）。記号のパスもこの値を前提に書いている */
+/** 五線の線間隔（SVG 単位） */
 const S = 10;
 /** 1段の高さ。線5本（4S）＋上下に加線4本分の余白（各4S） */
 export const STAVE_HEIGHT = S * 12;
@@ -39,12 +40,20 @@ const FLAT_STEPS = [4, 7, 3, 6, 2, 5, 1];
 const CLEF_STEP_SHIFT: Record<Clef, number> = { treble: 0, bass: -2 };
 
 const CLEF_X = 4;
-const CLEF_WIDTH = 2.5 * S;
-const KEY_SIG_X = CLEF_X + CLEF_WIDTH + 6;
+/** 音部記号の右端と調号のすき間（ト音・ヘ音とも同じ） */
+const CLEF_KEY_SIG_GAP = 0.42 * S;
 
+/** 符幹の基本の長さ（符頭の中心から）。これで第3線に届かない音は第3線まで伸ばす */
 const STEM_LENGTH = 3.5 * S;
-const STEM_OFFSET = 5.7;
-const ACCIDENTAL_GAP = 14;
+// 以下は Bravura の engravingDefaults の値
+const STAFF_LINE_THICKNESS = 0.13 * S;
+const LEDGER_THICKNESS = 0.16 * S;
+const STEM_THICKNESS = 0.12 * S;
+const LEDGER_EXTENSION = 0.4 * S;
+/** 調号の記号どうしのすき間 */
+const KEY_SIG_GAP = 0.2 * S;
+/** 臨時記号と符頭のすき間 */
+const ACCIDENTAL_GAP = 0.3 * S;
 
 /** 第1線からの段数（線と間を1段ずつ数える。第1線 = 0、第5線 = 8） */
 export function staffStep(pitch: string, clef: Clef): number {
@@ -55,85 +64,76 @@ export function staffStep(pitch: string, clef: Clef): number {
 const stepY = (step: number) => BOTTOM_LINE_Y - (step * S) / 2;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
-// ---- 記号 ----
-
-/** 原点中心・deg 度傾けた楕円のパス */
-function ellipse(rx: number, ry: number, deg: number): string {
-  const rad = (deg * Math.PI) / 180;
-  const x = r2(rx * Math.cos(rad));
-  const y = r2(rx * Math.sin(rad));
-  return `M${x} ${y}A${rx} ${ry} ${deg} 1 1 ${-x} ${-y}A${rx} ${ry} ${deg} 1 1 ${x} ${y}Z`;
-}
-
-// 符頭は横 1.2S・縦 1S。白抜きは内側の楕円を evenodd で抜く
-const HEAD_PATHS: Record<NoteValue, string> = {
-  whole: ellipse(6.6, 4.6, 0) + ellipse(4, 2.9, 60),
-  half: ellipse(6.4, 4.4, -20) + ellipse(5, 1.9, -28),
-  quarter: ellipse(6.4, 4.4, -20),
-};
-
-/** (x1,y1)→(x2,y2) を中心線とする厚さ t の平行四辺形 */
-function bar(x1: number, y1: number, x2: number, y2: number, t: number): string {
-  return `M${r2(x1)} ${r2(y1 - t / 2)}L${r2(x2)} ${r2(y2 - t / 2)}V${r2(y2 + t / 2)}L${r2(x1)} ${r2(y1 + t / 2)}Z`;
-}
-
-const fillPath = (d: string) => `<path d="${d}" fill="currentColor"/>`;
+/** 線（五線・加線）。端は丸めず、指定した長さちょうどで止める */
 const strokePath = (d: string, width: number) =>
-  `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round"/>`;
+  `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${r2(width)}"/>`;
 
-function flatParts(x: number, y: number): string {
-  const stem = `M${r2(x - 2.5)} ${r2(y - 16)}V${r2(y + 5.5)}`;
-  const bowl =
-    `M${r2(x - 2.5)} ${r2(y - 0.8)}C${r2(x + 0.5)} ${r2(y - 4.6)} ${r2(x + 5.6)} ${r2(y - 3.8)} ${r2(x + 4.4)} ${r2(y + 0.2)}` +
-    `C${r2(x + 3.4)} ${r2(y + 3)} ${r2(x + 0.4)} ${r2(y + 4.4)} ${r2(x - 2.5)} ${r2(y + 5.5)}`;
-  return strokePath(stem, 1.1) + strokePath(bowl, 1.6);
-}
+// ---- 記号（Bravura のグリフ） ----
 
-function accidentalGlyph(mark: AccidentalMark, x: number, y: number): string {
-  let body: string;
-  switch (mark) {
-    case 'sharp': {
-      const bars = [-4.5, 4.5].map((c) => bar(x - 4.5, y + c + 1.5, x + 4.5, y + c - 1.5, 2.4)).join('');
-      const lines = `M${r2(x - 2)} ${r2(y - 12.5)}V${r2(y + 14)}M${r2(x + 2)} ${r2(y - 14)}V${r2(y + 12.5)}`;
-      body = fillPath(bars) + strokePath(lines, 1.1);
-      break;
-    }
-    case 'natural': {
-      const bars = [-3.4, 3.4].map((c) => bar(x - 2.3, y + c + 1, x + 2.3, y + c - 1, 2.4)).join('');
-      const lines = `M${r2(x - 2.3)} ${r2(y - 13.5)}V${r2(y + 5.5)}M${r2(x + 2.3)} ${r2(y - 5.5)}V${r2(y + 13.5)}`;
-      body = fillPath(bars) + strokePath(lines, 1.1);
-      break;
-    }
-    case 'flat':
-      body = flatParts(x, y);
-      break;
-    case 'doubleFlat':
-      body = flatParts(x - 3.5, y) + flatParts(x + 3.5, y);
-      break;
-    case 'doubleSharp': {
-      const cross = `M${r2(x - 3.4)} ${r2(y - 3.4)}L${r2(x + 3.4)} ${r2(y + 3.4)}M${r2(x - 3.4)} ${r2(y + 3.4)}L${r2(x + 3.4)} ${r2(y - 3.4)}`;
-      const corners = [-3.4, 3.4]
-        .flatMap((dx) => [-3.4, 3.4].map((dy) => `M${r2(x + dx - 1.5)} ${r2(y + dy - 1.5)}h3v3h-3Z`))
-        .join('');
-      body = strokePath(cross, 1.3) + fillPath(corners);
-      break;
-    }
-  }
-  return `<g class="glyph ${mark}">${body}</g>`;
-}
+// SMuFL は 1em = 線間隔4つ分。グリフの原点（左端・ベースライン）を、音部記号は基準の線に、
+// 臨時記号と符頭は音の高さに置く
+const GLYPH_FONT_SIZE = 4 * S;
 
-const CLEFS: Record<Clef, string> = {
-  treble:
-    strokePath(
-      'M14 71C10 71 9.5 65.5 14 64.5C19 63.5 22.5 69 20.5 74C18.5 79 12 81.5 7.5 78.5C2 75 3 66 8 60' +
-        'C12 55 18 49 19 40C19.8 33 18 25 15.5 23C12 21 10 30 11 38L15.5 88C16 93 13 96 9.5 94.5',
-      1.8,
-    ) + '<circle cx="10" cy="92.5" r="2.4" fill="currentColor"/>',
-  bass:
-    strokePath('M4.5 49C4.5 43 10 40 14.5 40.5C20.5 41 22.5 46 22 51C21.2 60 13 70 3 77', 2.2) +
-    '<circle cx="6.5" cy="50" r="3.3" fill="currentColor"/>' +
-    '<circle cx="25.5" cy="45" r="1.7" fill="currentColor"/><circle cx="25.5" cy="55" r="1.7" fill="currentColor"/>',
+type NoteheadName = 'noteheadWhole' | 'noteheadHalf' | 'noteheadBlack';
+type GlyphName = 'gClef' | 'fClef' | AccidentalMark | NoteheadName;
+
+/** SMuFL のコードポイントと、字形の右端（線間隔単位。Bravura メタデータの bBoxNE の x） */
+const GLYPHS: Record<GlyphName, { code: string; width: number }> = {
+  gClef: { code: 'E050', width: 2.684 },
+  fClef: { code: 'E062', width: 2.736 },
+  flat: { code: 'E260', width: 0.904 },
+  natural: { code: 'E261', width: 0.672 },
+  sharp: { code: 'E262', width: 0.996 },
+  doubleSharp: { code: 'E263', width: 0.988 },
+  doubleFlat: { code: 'E264', width: 1.644 },
+  noteheadWhole: { code: 'E0A2', width: 1.688 },
+  noteheadHalf: { code: 'E0A3', width: 1.18 },
+  noteheadBlack: { code: 'E0A4', width: 1.18 },
 };
+
+const glyphWidth = (name: GlyphName) => GLYPHS[name].width * S;
+
+/** グリフを左端 x・ベースライン y に置く */
+function glyph(name: GlyphName, x: number, y: number, extraClass = ''): string {
+  const cls = extraClass ? `glyph ${name} ${extraClass}` : `glyph ${name}`;
+  return `<text class="${cls}" x="${r2(x)}" y="${r2(y)}" font-size="${GLYPH_FONT_SIZE}">&#x${GLYPHS[name].code};</text>`;
+}
+
+// 音部記号の基準の線：ト音記号は第2線（G）、ヘ音記号は第4線（F）
+const CLEF_GLYPH: Record<Clef, { name: GlyphName; step: number }> = {
+  treble: { name: 'gClef', step: 2 },
+  bass: { name: 'fClef', step: 6 },
+};
+
+/** 調号の1つ目の左端。音部記号の右端から CLEF_KEY_SIG_GAP 空ける */
+const keySigX = (clef: Clef) => CLEF_X + glyphWidth(CLEF_GLYPH[clef].name) + CLEF_KEY_SIG_GAP;
+
+// ---- 符頭と符幹 ----
+
+const NOTEHEADS: Record<NoteValue, NoteheadName> = {
+  whole: 'noteheadWhole',
+  half: 'noteheadHalf',
+  quarter: 'noteheadBlack',
+};
+
+/**
+ * SMuFL の anchor（Bravura の値、線間隔単位）。上向きの符幹は右端を stemUpSE に、
+ * 下向きの符幹は左端を stemDownNW に合わせる。y は上向きが正
+ */
+const STEM_ANCHORS = {
+  up: { x: 1.18, y: 0.168 },
+  down: { x: 0, y: -0.168 },
+};
+
+/**
+ * 符幹の先端の y。基本は符頭の中心から STEM_LENGTH だが、それで第3線に届かない音
+ * （五線から離れた音）は第3線まで伸ばす（PDF の記譜と同じ）
+ */
+export function stemEndY(step: number): number {
+  const y = stepY(step);
+  const middle = stepY(MIDDLE_LINE);
+  return step >= MIDDLE_LINE ? Math.max(y + STEM_LENGTH, middle) : Math.min(y - STEM_LENGTH, middle);
+}
 
 // ---- 段 ----
 
@@ -143,27 +143,38 @@ function renderNote(note: StaveNote, x: number, spacing: number, clef: Clef, not
 
   const bg = `<rect class="note-bg" x="${r2(x - spacing / 2 + 2)}" y="${S}" width="${r2(spacing - 4)}" height="${S * 10}" rx="${S * 0.6}"/>`;
 
+  // 符頭は x を中心に置く
+  const headName = NOTEHEADS[noteValue];
+  const headWidth = glyphWidth(headName);
+  const headLeft = x - headWidth / 2;
+
+  // 加線は符頭の左右に LEDGER_EXTENSION はみ出す
   const ledgerSteps: number[] = [];
   for (let s = -2; s >= step; s -= 2) ledgerSteps.push(s);
   for (let s = TOP_LINE + 2; s <= step; s += 2) ledgerSteps.push(s);
   const ledgers = ledgerSteps.length
-    ? `<g class="ledgers">${strokePath(ledgerSteps.map((s) => `M${r2(x - 9)} ${stepY(s)}H${r2(x + 9)}`).join(''), 1)}</g>`
+    ? `<g class="ledgers">${strokePath(
+        ledgerSteps.map((s) => `M${r2(headLeft - LEDGER_EXTENSION)} ${stepY(s)}H${r2(headLeft + headWidth + LEDGER_EXTENSION)}`).join(''),
+        LEDGER_THICKNESS,
+      )}</g>`
     : '';
 
+  // 臨時記号は右端を符頭の左端から ACCIDENTAL_GAP だけ離して置く
   const accidental = note.accidental
-    ? accidentalGlyph(note.accidental, x - ACCIDENTAL_GAP - (note.accidental === 'doubleFlat' ? 3 : 0), y)
+    ? glyph(note.accidental, headLeft - ACCIDENTAL_GAP - glyphWidth(note.accidental), y)
     : '';
 
-  const head = `<path class="head" d="${HEAD_PATHS[noteValue]}" transform="translate(${r2(x)} ${y})" fill="currentColor" fill-rule="evenodd"/>`;
+  const head = glyph(headName, headLeft, y, 'head');
 
   let stem = '';
   if (noteValue !== 'whole') {
-    // 中央線より上の音は下向き、それ以外は上向き
-    const down = step > MIDDLE_LINE;
-    const sx = r2(down ? x - STEM_OFFSET : x + STEM_OFFSET);
-    const y1 = down ? y + 1 : y - 1;
-    const y2 = down ? y + STEM_LENGTH : y - STEM_LENGTH;
-    stem = `<path class="stem" d="M${sx} ${y1}V${y2}" stroke="currentColor" stroke-width="1.2"/>`;
+    // 第3線（中央線）上とそれより高い音は下向き、中央線より低い音は上向き
+    const down = step >= MIDDLE_LINE;
+    const anchor = down ? STEM_ANCHORS.down : STEM_ANCHORS.up;
+    // anchor は符幹の外側の角なので、線の中心は太さの半分だけ内側（上向きは左、下向きは右）
+    const sx = r2(headLeft + anchor.x * S + (down ? STEM_THICKNESS / 2 : -STEM_THICKNESS / 2));
+    const y1 = r2(y - anchor.y * S);
+    stem = `<path class="stem" d="M${sx} ${y1}V${r2(stemEndY(step))}" stroke="currentColor" stroke-width="${r2(STEM_THICKNESS)}"/>`;
   }
 
   const accidentalAttr = note.accidental ? ` data-accidental="${note.accidental}"` : '';
@@ -175,18 +186,22 @@ export function renderStave(notes: readonly StaveNote[], options: StaveOptions):
   const { clef, keySignature, noteValue, width = STAVE_WIDTH } = options;
 
   const lines = [0, 2, 4, 6, 8].map((s) => `M0 ${stepY(s)}H${width}`).join('');
-  const staffLines = `<g class="staff-lines">${strokePath(lines, 1)}</g>`;
+  const staffLines = `<g class="staff-lines">${strokePath(lines, STAFF_LINE_THICKNESS)}</g>`;
 
-  const clefMarkup = `<g class="clef" transform="translate(${CLEF_X} 0)">${CLEFS[clef]}</g>`;
+  const { name: clefName, step: clefStep } = CLEF_GLYPH[clef];
+  const clefMarkup = `<g class="clef">${glyph(clefName, CLEF_X, stepY(clefStep))}</g>`;
 
+  // 調号は記号の幅＋すき間ごとに並べる
   const count = Math.abs(keySignature);
-  const sigSteps = (keySignature > 0 ? SHARP_STEPS : FLAT_STEPS).slice(0, count);
   const sigMark: AccidentalMark = keySignature > 0 ? 'sharp' : 'flat';
-  const keySig = sigSteps
-    .map((s, i) => accidentalGlyph(sigMark, KEY_SIG_X + S / 2 + i * S, stepY(s + CLEF_STEP_SHIFT[clef])))
+  const sigAdvance = glyphWidth(sigMark) + KEY_SIG_GAP;
+  const sigX = keySigX(clef);
+  const keySig = (keySignature > 0 ? SHARP_STEPS : FLAT_STEPS)
+    .slice(0, count)
+    .map((s, i) => glyph(sigMark, sigX + i * sigAdvance, stepY(s + CLEF_STEP_SHIFT[clef])))
     .join('');
 
-  const notesX = KEY_SIG_X + count * S + S;
+  const notesX = sigX + count * sigAdvance + S;
   const spacing = (width - notesX - S / 2) / notes.length;
   const noteMarkup = notes
     .map((note, i) => renderNote(note, notesX + spacing * (i + 0.5), spacing, clef, noteValue))

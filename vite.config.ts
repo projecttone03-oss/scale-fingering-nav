@@ -13,7 +13,7 @@ export default defineConfig({
       // マニフェストは public/manifest.webmanifest を手書きで管理する（SPEC 8.2）
       manifest: false,
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
       },
     }),
   ],
