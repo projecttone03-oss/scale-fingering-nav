@@ -1,0 +1,16 @@
+{
+  "instrument": "bb_trumpet",
+  "clef": "treble",
+  "scales": {
+    "C_major": {
+      "keySignature": 2,
+      "ascending": ["D4", "E4", "F#4", "G4", "A4", "B4", "C#5", "D5"],
+      "descending": ["C#5", "B4", "A4", "G4", "F#4", "E4", "D4"]
+    },
+    "C_minor": {
+      "keySignature": -1,
+      "ascending": ["D4", "E4", "F4", "G4", "A4", "B4", "C#5", "D5"],
+      "descending": ["C5", "Bb4", "A4", "G4", "F4", "E4", "D4"]
+    }
+  }
+}

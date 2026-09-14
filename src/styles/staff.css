@@ -1,0 +1,38 @@
+/* 五線譜（SPEC 5.4）。色は base.css のテーマ変数で決める */
+.staff {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--staff-ink);
+}
+
+.staff .staff-lines,
+.staff .ledgers {
+  color: var(--staff-line);
+}
+
+.staff .note-bg {
+  fill: transparent;
+}
+
+.staff .note.current {
+  color: var(--note-current);
+}
+.staff .note.current .note-bg {
+  fill: var(--note-current-bg);
+}
+/* 色だけに頼らず、太さでも区別する（SPEC 11章） */
+.staff .note.current .head {
+  stroke: currentColor;
+  stroke-width: 0.8;
+}
+.staff .note.current .stem {
+  stroke-width: 2;
+}
+
+.staff .note.next {
+  color: var(--note-next);
+}
+.staff .note.next .note-bg {
+  fill: var(--note-next-bg);
+}

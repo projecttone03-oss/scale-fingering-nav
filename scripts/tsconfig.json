@@ -1,0 +1,9 @@
+{
+  // Node で直接実行するスクリプト用。ブラウザ側のコードに Node の型が混ざらないよう分けている
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["."]
+}

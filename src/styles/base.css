@@ -1,8 +1,17 @@
-/* テーマ変数（ライト/ダーク）。色の詳細は M2 以降で追加する。 */
+/* テーマ変数（ライト/ダーク） */
 :root {
   color-scheme: light dark;
   --color-bg: #ffffff;
   --color-fg: #1a1a1a;
+
+  /* 五線譜（SPEC 5.4） */
+  --staff-ink: #1a1a1a;
+  --staff-line: #666666;
+  --note-current: #d9480f;
+  --note-current-bg: rgba(217, 72, 15, 0.16);
+  --note-next: #ee9b72;
+  --note-next-bg: rgba(217, 72, 15, 0.07);
+
   font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
 }
 
@@ -10,6 +19,13 @@
   :root {
     --color-bg: #121212;
     --color-fg: #eeeeee;
+
+    --staff-ink: #eeeeee;
+    --staff-line: #9a9a9a;
+    --note-current: #ff8a4c;
+    --note-current-bg: rgba(255, 138, 76, 0.24);
+    --note-next: #b87a5a;
+    --note-next-bg: rgba(255, 138, 76, 0.1);
   }
 }
 
