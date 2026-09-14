@@ -1,0 +1,12 @@
+{
+  "name": "スケール運指ナビ",
+  "short_name": "運指ナビ",
+  "lang": "ja",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": []
+}
