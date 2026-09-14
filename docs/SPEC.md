@@ -196,7 +196,7 @@ export interface Instrument {
 | bb_trumpet | B♭トランペット | treble | −2 | 1 |
 | f_horn | Fホルン | treble | −7 | 3 |
 | trombone | トロンボーン | bass | 0 | 1 |
-| euphonium | ユーフォニアム | bass（要PDF確認。ト音記号譜なら −2） | 0 | 1 |
+| euphonium | ユーフォニアム | bass | 0 | 1 |
 | tuba | チューバ | bass | 0 | 1 |
 | string_bass | ストリングベース | bass | −12 | 3 |
 
@@ -565,7 +565,6 @@ Claude Code に依頼する単位。各マイルストーンの終わりに動�
 
 | 項目 | 状態 | 対応 |
 |---|---|---|
-| ユーフォニアムの音部記号（ヘ音／ト音） | PDF で要確認 | 4.3 の clef / transposition を PDF に合わせる |
 | Fホルンの F 管／B♭管の使い分け | PDF（8ページ・両対応）の記載に従う | フェーズ3で `crook` を PDF から転記 |
 | 木管の代替運指をどこまで入れるか | 未定 | v1 は主運指＋PDF・メーカー表に明記のある代替のみ |
 | ファゴット低音域のハーフホール、オーボエのハーフホール | 注記で対応 | `Instrument.notes` に文言を持ち、S2 の運指図下に表示 |

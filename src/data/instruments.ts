@@ -49,7 +49,6 @@ export const INSTRUMENTS: readonly Instrument[] = [
   { id: 'bb_trumpet', nameJa: 'B♭トランペット', family: 'brass_valve', clef: 'treble', transposition: -2, phase: 1, fingeringTemplate: 'bb_trumpet' },
   { id: 'f_horn', nameJa: 'Fホルン', family: 'brass_valve', clef: 'treble', transposition: -7, phase: 3, fingeringTemplate: 'f_horn' },
   { id: 'trombone', nameJa: 'トロンボーン', family: 'brass_slide', clef: 'bass', transposition: 0, phase: 1, fingeringTemplate: 'trombone' },
-  // clef は要PDF確認（SPEC 12章）。ト音記号譜なら transposition を −2 にする
   { id: 'euphonium', nameJa: 'ユーフォニアム', family: 'brass_valve', clef: 'bass', transposition: 0, phase: 1, fingeringTemplate: 'euphonium' },
   { id: 'tuba', nameJa: 'チューバ', family: 'brass_valve', clef: 'bass', transposition: 0, phase: 1, fingeringTemplate: 'tuba' },
   { id: 'string_bass', nameJa: 'ストリングベース', family: 'string', clef: 'bass', transposition: -12, phase: 3, fingeringTemplate: 'string_bass' },
