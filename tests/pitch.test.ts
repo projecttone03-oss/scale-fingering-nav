@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { midiToFreq, parsePitch } from '../src/music/pitch.ts';
+import { A4_HZ, midiToFreq, parsePitch } from '../src/music/pitch.ts';
 
 describe('parsePitch', () => {
   it.each([
@@ -28,10 +28,17 @@ describe('parsePitch', () => {
 });
 
 describe('midiToFreq', () => {
-  it('A4 = 440 Hz を基準にした平均律', () => {
-    expect(midiToFreq(69)).toBe(440);
-    expect(midiToFreq(81)).toBe(880);
-    expect(midiToFreq(57)).toBe(220);
-    expect(midiToFreq(60)).toBeCloseTo(261.6256, 3);
+  it('既定は A4 = 442 Hz（日本の吹奏楽の基準ピッチ）を基準にした平均律', () => {
+    expect(A4_HZ).toBe(442);
+    expect(midiToFreq(69)).toBe(442);
+    expect(midiToFreq(81)).toBe(884);
+    expect(midiToFreq(57)).toBe(221);
+    expect(midiToFreq(60)).toBeCloseTo(262.8148, 3);
+  });
+
+  it('基準ピッチを引数で変えられる（将来の F15 用）', () => {
+    expect(midiToFreq(69, 440)).toBe(440);
+    expect(midiToFreq(60, 440)).toBeCloseTo(261.6256, 3);
+    expect(midiToFreq(69, 445)).toBe(445);
   });
 });

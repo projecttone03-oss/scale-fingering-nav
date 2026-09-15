@@ -27,7 +27,10 @@ export function parsePitch(str: string): Pitch {
   return { letter, accidental, octave, midi };
 }
 
-/** 平均律、A4（MIDI 69）= 440 Hz */
-export function midiToFreq(midi: number): number {
-  return 440 * 2 ** ((midi - 69) / 12);
+/** 基準ピッチ A4（MIDI 69）の周波数。日本の吹奏楽に合わせて 442 Hz（SPEC 4.2） */
+export const A4_HZ = 442;
+
+/** 平均律の周波数。a4 は基準ピッチ（将来の F15 で 440〜445 Hz から選べるようにする） */
+export function midiToFreq(midi: number, a4: number = A4_HZ): number {
+  return a4 * 2 ** ((midi - 69) / 12);
 }

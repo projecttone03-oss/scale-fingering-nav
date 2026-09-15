@@ -123,7 +123,7 @@ B♭トランペット / Fホルン / トロンボーン / ユーフォニアム
 2. **カウントイン 1小節（4拍）**：クリックのみ。1拍目はアクセント。
 3. 1音目から順に、各音を「音価×拍」の長さで進行。参考音 ON なら各音の開始時に実音を鳴らす。
 4. 15音目が終わったら自動停止。「いま」に最終音を残し、「つぎ」は「おわり」。
-5. 停止ボタン → 即時停止。スケジュール済みの音はキャンセル。位置は先頭に戻す。
+5. 停止ボタン → 即時停止。スケジュール済みの音はキャンセル。位置は先頭に戻す。鳴っている途中の音をいきなり切るとプツッと鳴るので、10 ms で音量を 0 にしてから止める。
 
 ---
 
@@ -145,6 +145,7 @@ B♭トランペット / Fホルン / トロンボーン / ユーフォニアム
 | F12 | 情報画面（教材紹介・不具合報告リンク） | 推奨 |
 | F13 | リズム・アーティキュレーションパターン（PDF巻末10種） | 将来 |
 | F14 | 練習記録（クリア済み） | 将来 |
+| F15 | 基準ピッチの変更（440〜445 Hz、既定442） | 将来 |
 
 ---
 
@@ -160,7 +161,7 @@ B♭トランペット / Fホルン / トロンボーン / ユーフォニアム
 ### 4.2 音高の表記
 
 - 綴り付きの科学的ピッチ表記の文字列を使う：`"C4"`, `"F#5"`, `"Bb3"`, `"Fx5"`（ダブルシャープ）, `"Cb5"`。`C4` ＝ 中央ハ（MIDI 60）。
-- `pitch.ts` に `parsePitch(str) → { letter, accidental, octave, midi }` と `midiToFreq(midi)` を置く。A4 = 440 Hz。
+- `pitch.ts` に `parsePitch(str) → { letter, accidental, octave, midi }` と `midiToFreq(midi, a4 = 442)` を置く。基準ピッチは **A4 = 442 Hz**（日本の吹奏楽の基準ピッチ）。引数 `a4` は将来の F15（基準ピッチの変更）用。
 
 ### 4.3 楽器定義 `src/data/instruments.ts`
 
@@ -364,8 +365,9 @@ VexFlow 等の記譜ライブラリは使わず、`src/render/staff.ts` で SVG 
 ### 6.3 参考音
 
 - 波形は `triangle`（吹奏楽器に近い、耳障りでない）。ゲインは 0.25。
-- エンベロープ：アタック 15 ms、リリース 60 ms（次の音と重ならないよう音価の 95% で減衰開始）。
-- 周波数＝ `midiToFreq(writtenMidi + instrument.transposition)`。**実音で鳴らす。** 記譜音で鳴らすと B♭楽器等で教材の意図（全員同じ実音）と食い違う。
+- エンベロープ：アタック 15 ms、リリース 60 ms（次の音と重ならないよう音価の 95% で減衰開始）。テンポが速く 95% からでは次の音に重なる場合（例：160 BPM の四分音符）は、減衰の開始を早めて次の音の頭で消えきるようにする。
+- 参考音の ON/OFF（2.4）は再生中も切り替えられる。参考音は ON/OFF に関係なく予約し、参考音専用の出力（GainNode）のゲインで切り替える。OFF はその時点から 10 ms で消す（鳴っている途中の音も、予約済みの次の音も）。ON は次の音の開始から鳴らす（2.7-3「各音の開始時に鳴らす」。鳴っている途中の音を途中から鳴らさない）。
+- 周波数＝ `midiToFreq(writtenMidi + instrument.transposition)`（基準ピッチ A4 = 442 Hz、4.2）。**実音で鳴らす。** 記譜音で鳴らすと B♭楽器等で教材の意図（全員同じ実音）と食い違う。
 
 ### 6.4 スケジューラ（先読み方式）
 
@@ -381,24 +383,29 @@ tick 間隔      : 25 ms（setInterval）
 再生開始時に**イベント表**を一度だけ作る：
 
 ```ts
-interface Event {
+interface ScheduleEvent {
   beat: number;          // 0 から
   time: number;          // 絶対時刻（秒）
-  kind: 'countin' | 'note' | 'end';
-  noteIndex?: number;    // 0..14
-  accent?: boolean;
+  kind: 'countin' | 'note' | 'beat' | 'end';
+  noteIndex?: number;    // note / beat のとき 0..14
+  accent?: boolean;      // カウントインの1拍目だけ true
+  duration?: number;     // note のとき、音の長さ（秒）
 }
 ```
 
 - カウントイン：beat 0〜3、`countin`（beat 0 は accent）。
-- 音 i：beat = 4 + i × beatsPerNote、`note`。beatsPerNote は音価から（全4／二分2／四分1）。各音の中の拍にもクリックを鳴らす（クリックは「拍」ごと、参考音は「音の開始」ごと）。
-- `end`：beat = 4 + 15 × beatsPerNote。
+- 音 i：beat = 4 + i × beatsPerNote、`note`。beatsPerNote は音価から（全4／二分2／四分1）。
+- 音の途中の拍：`beat`（クリックだけ鳴らす。noteIndex はその音）。クリックは「拍」ごと、参考音は「音の開始」（`note`）ごと。途中の拍も1行ずつ持つので、どのクリックも先読み幅の範囲でだけ予約され、停止時に先の音が残らない。
+- `end`：beat = 4 + 15 × beatsPerNote。音は鳴らさない（最後の音が終わる時刻）。
+- 時刻は拍ごとに `t0 + k × (60 / bpm)` で計算し、足し算を重ねない（長く再生しても誤差がたまらない）。
 
 tick ごとに `time < currentTime + 0.1` のイベントを Web Audio にスケジュールし、既にスケジュール済みのものは飛ばす。
 
+実装は `src/audio/scheduler.ts`（イベント表・進行度の引き当て・先読み）と `src/audio/player.ts`（AudioContext・スケジューラ・requestAnimationFrame・store をつなぐ再生の制御）に分ける。
+
 ### 6.5 テンポ変更（再生中）
 
-再生中にテンポを変えた場合は、現在の音の開始時刻を基準に以後のイベント時刻を再計算する（未スケジュール分のみ）。実装が複雑になるようなら、v1 では「再生中はテンポも変更不可」に倒してよい。
+**v1 では再生中（カウントイン中を含む）はテンポを変更不可とする。** テンポは再生開始時の値でイベント表を作る。将来対応する場合は、現在の音の開始時刻を基準に以後のイベント時刻を再計算する（未スケジュール分のみ）。
 
 ---
 
@@ -410,7 +417,7 @@ UI が参照する状態は **`progress: { noteIndex: number | null, phase: 'idl
 
 ### 7.2 UI の更新タイミング
 
-- オーディオのスケジュールと UI 更新を**分離**する。オーディオはイベント表の時刻どおりに先読みで鳴らす。UI は `requestAnimationFrame` ループで `audioCtx.currentTime` を読み、イベント表から「現在時刻に該当する noteIndex」を求めて `progress` を更新する。
+- オーディオのスケジュールと UI 更新を**分離**する。オーディオはイベント表の時刻どおりに先読みで鳴らす。UI は `requestAnimationFrame` ループで `audioCtx.currentTime` を読み、イベント表から「現在時刻に該当する noteIndex」を求めて `progress` を更新する。このとき、画面に使う時刻は `currentTime − outputLatency`（出力の遅延を差し引いた、耳に届いている時刻）とする。Bluetooth イヤホンなどで出力遅延が大きくても、ハイライトが音より先に進まない。`outputLatency` に対応しないブラウザでは `currentTime` のまま。音の予約には `currentTime` を使う。
 - こうすると UI がどれだけ遅れても音はズレず、UI は常に「音に追いつく」形になる。`setTimeout` のコールバックで UI を更新してはいけない。
 - `progress` が変化したフレームだけ DOM を更新する（毎フレーム描画しない）。
 
@@ -422,6 +429,8 @@ phase = 'countin' → now: なし（カウント）, next: 音0
 phase = 'playing' → now: 音i,             next: 音i+1（i=14 なら「おわり」）
 phase = 'done'    → now: 音14,            next: 「おわり」
 ```
+
+五線譜のハイライト（2.5）も同じ導出を使う：idle はハイライトなし、countin は音0を「次」、playing は now を「現在」・next を「次」、done は音14を「現在」のまま残す（「おわり」はハイライトしない）。
 
 ### 7.4 状態管理
 
@@ -489,7 +498,8 @@ scale-fingering-nav/
 │   ├─ audio/
 │   │   ├─ context.ts
 │   │   ├─ scheduler.ts       # 6.4
-│   │   └─ sounds.ts          # クリック・参考音
+│   │   ├─ sounds.ts          # クリック・参考音
+│   │   └─ player.ts          # 再生の制御（AudioContext・スケジューラ・rAF・store をつなぐ）
 │   ├─ ui/
 │   │   ├─ instrumentSelect.ts
 │   │   ├─ controls.ts
