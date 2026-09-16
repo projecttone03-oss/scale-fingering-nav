@@ -5,7 +5,7 @@ import '../src/styles/staff.css';
 import type { AccidentalMark } from '../src/music/accidentals.ts';
 import { STAVE_HEIGHT, STAVE_WIDTH, renderStave, type StaveOptions } from '../src/render/staff.ts';
 
-/** アプリで五線譜を表示するときの縮尺（スマホ幅 375px に 400 単位の段を描く） */
+/** アプリで五線譜を表示するときの縮尺（スマホ幅 375px に STAVE_WIDTH 単位の段を描く） */
 const ACTUAL = 375 / STAVE_WIDTH;
 const ZOOM = 3;
 
@@ -62,6 +62,21 @@ const SECTIONS: { title: string; samples: Sample[] }[] = [
         label: 'ヘ音記号：上第1〜3線（C4 E4 G4）、下第1〜3線（E2 C2 A1）',
         options: bass(300, { noteValue: 'quarter' }),
         notes: [['C4'], ['E4'], ['G4'], ['E2'], ['C2'], ['A1']],
+      },
+    ],
+  },
+  {
+    title: '拍子記号・小節線・終止線（SPEC 5.6）',
+    samples: [
+      {
+        label: 'ト音記号・調号 ♯2つ・4/4・二分音符（2音ごとに小節線、最後に終止線）',
+        options: { ...treble(260, { keySignature: 2 }), timeSignature: true, notesPerBar: 2, end: 'final' },
+        notes: [['D4'], ['E4'], ['F#4'], ['G4']],
+      },
+      {
+        label: 'ヘ音記号・調号 ♭3つ・4/4・全音符（1音ごとに小節線、最後は細い小節線）',
+        options: { ...bass(260, { keySignature: -3, noteValue: 'whole' }), timeSignature: true, notesPerBar: 1, end: 'barline' },
+        notes: [['Eb3'], ['F3'], ['G3'], ['Ab3']],
       },
     ],
   },

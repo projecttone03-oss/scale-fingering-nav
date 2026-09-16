@@ -1,10 +1,12 @@
 // 先読みスケジューラ（SPEC 6.4）と、時刻から進行度を引く関数（SPEC 7.2）。
 // ここは Web Audio にも DOM にも触れない。音を鳴らすのは onSchedule を渡す側（player.ts）。
-import type { NoteValue } from '../render/staff.ts';
+import { BEATS_PER_BAR, BEATS_PER_NOTE, type NoteValue } from '../music/meter.ts';
 import { NOTE_COUNT, type Progress } from '../state/store.ts';
 
-export const COUNT_IN_BEATS = 4;
-export const BEATS_PER_NOTE: Record<NoteValue, number> = { whole: 4, half: 2, quarter: 1 };
+export { BEATS_PER_NOTE };
+
+/** カウントインは1小節（4拍） */
+export const COUNT_IN_BEATS = BEATS_PER_BAR;
 
 /** 再生開始（currentTime）から最初の拍までの余裕（秒） */
 export const START_DELAY = 0.05;
@@ -25,7 +27,7 @@ export interface ScheduleEvent {
   /** AudioContext の絶対時刻（秒） */
   time: number;
   kind: EventKind;
-  /** note / beat のとき、その拍が属する音（0〜14） */
+  /** note / beat のとき、その拍が属する音（0〜15） */
   noteIndex?: number;
   /** 強拍のクリック（カウントインの1拍目） */
   accent?: boolean;

@@ -6,7 +6,7 @@ import type { Mode, ScaleKey } from '../data/keys.ts';
 export interface ScaleMidi {
   /** 主音〜オクターブ上の主音（8音） */
   ascending: number[];
-  /** オクターブ上の主音の次から主音まで（7音） */
+  /** オクターブ上の主音〜主音（8音）。最高音は上行の最後と同じ音（PDF と同じく2回鳴らす） */
   descending: number[];
 }
 
@@ -16,8 +16,8 @@ const ASCENDING: Record<Mode, readonly number[]> = {
   minor: [0, 2, 3, 5, 7, 9, 11, 12],
 };
 const DESCENDING: Record<Mode, readonly number[]> = {
-  major: [11, 9, 7, 5, 4, 2, 0],
-  minor: [10, 8, 7, 5, 3, 2, 0],
+  major: [12, 11, 9, 7, 5, 4, 2, 0],
+  minor: [12, 10, 8, 7, 5, 3, 2, 0],
 };
 
 const mod12 = (n: number) => ((n % 12) + 12) % 12;

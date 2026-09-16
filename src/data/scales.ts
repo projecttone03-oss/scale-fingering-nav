@@ -6,7 +6,7 @@ export interface ScaleEntry {
   keySignature: number;
   /** 主音〜オクターブ上の主音（8音） */
   ascending: string[];
-  /** オクターブ上の主音の次から主音まで（7音）。短調は上行の逆順ではない */
+  /** オクターブ上の主音〜主音（8音。最高音は上行の最後と2回）。短調は上行の逆順ではない */
   descending: string[];
 }
 

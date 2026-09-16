@@ -9,7 +9,8 @@ import { getScaleKey } from '../src/data/keys.ts';
 import type { InstrumentScales } from '../src/data/scales.ts';
 import { accidentalMarks } from '../src/music/accidentals.ts';
 import { parsePitch } from '../src/music/pitch.ts';
-import { applyStaffHighlight, renderScaleStaves, type NoteValue } from '../src/render/staff.ts';
+import type { NoteValue } from '../src/music/meter.ts';
+import { applyStaffHighlight, renderScaleStaves } from '../src/render/staff.ts';
 import {
   BPM_MAX,
   BPM_MIN,
@@ -56,7 +57,9 @@ const pitches = [...scale.ascending, ...scale.descending];
 const writtenMidis = pitches.map((p) => parsePitch(p).midi);
 const marks = accidentalMarks(scale.keySignature, pitches);
 const MARK_LABEL = { natural: '♮', sharp: '♯', flat: '♭', doubleSharp: '𝄪', doubleFlat: '𝄫' } as const;
-const staff = renderScaleStaves(scale, instrument.clef, value);
+// 五線の幅（SVG 単位、線間隔 = 10）。?width=480 などで比べる（開発用）
+const staffWidth = /^\d+$/.test(params.get('width') ?? '') ? Math.min(800, Math.max(300, Number(params.get('width')))) : undefined;
+const staff = renderScaleStaves(scale, instrument.clef, value, staffWidth);
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
@@ -78,7 +81,7 @@ app.innerHTML = `
   <div style="width:375px;max-width:100%;border:1px dashed #999;box-sizing:border-box">${staff}</div>
   <h2 style="font-size:1rem">広い画面（720px）</h2>
   <div style="width:720px;max-width:100%;border:1px dashed #999;box-sizing:border-box">${staff}</div>
-  <h2 style="font-size:1rem">15音と臨時記号（SPEC 5.3）</h2>
+  <h2 style="font-size:1rem">16音と臨時記号（SPEC 5.3）</h2>
   <ol start="0">${pitches
     .map((p, i) => `<li>${i < 8 ? '上行' : '下行'} ${p}${marks[i] ? `　→ 記号 ${MARK_LABEL[marks[i]]}` : ''}</li>`)
     .join('')}</ol>

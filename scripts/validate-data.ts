@@ -34,9 +34,9 @@ for (const file of readdirSync(scalesDir).filter((f) => f.endsWith('.json'))) {
       errors.push(`${where}: keySignature ${scale.keySignature} が -7〜7 の整数でない`);
     }
 
-    // 1. 上行8音・下行7音
+    // 1. 上行8音・下行8音（どちらも最高音を含む16音）
     if (scale.ascending.length !== 8) errors.push(`${where}: ascending が ${scale.ascending.length} 音（8音のはず）`);
-    if (scale.descending.length !== 7) errors.push(`${where}: descending が ${scale.descending.length} 音（7音のはず）`);
+    if (scale.descending.length !== 8) errors.push(`${where}: descending が ${scale.descending.length} 音（8音のはず）`);
 
     // 2. 実音の調＋楽器の移調から導いた理論音列と MIDI 番号で一致する
     const pitches = [...scale.ascending, ...scale.descending];

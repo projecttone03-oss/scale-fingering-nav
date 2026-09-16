@@ -6,12 +6,12 @@ import { midiToFreq } from '../src/music/pitch.ts';
 import { createStore } from '../src/state/store.ts';
 import { FakeAudioContext } from './fakeAudio.ts';
 
-// B♭トランペット ハ長調（記譜ニ長調）の15音
-const WRITTEN = [62, 64, 66, 67, 69, 71, 73, 74, 73, 71, 69, 67, 66, 64, 62];
+// B♭トランペット ハ長調（記譜ニ長調）の16音（最高音 D5 = 74 は上行の最後と下行の最初で2回）
+const WRITTEN = [62, 64, 66, 67, 69, 71, 73, 74, 74, 73, 71, 69, 67, 66, 64, 62];
 const PARAMS: PlayParams = { writtenMidis: WRITTEN, transposition: -2, bpm: 60, noteValue: 'half' };
-// 60 BPM・二分音符・開始時刻 0：t0 = 0.05、音 i は 4.05 + 2i、終了は 34.05
+// 60 BPM・二分音符・開始時刻 0：t0 = 0.05、音 i は 4.05 + 2i、終了は 4.05 + 2 × 16 = 36.05
 const noteStart = (i: number) => 4.05 + 2 * i;
-const END = 34.05;
+const END = 36.05;
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -103,12 +103,12 @@ describe('createPlayer（SPEC 2.7）', () => {
     expect(tones(ctx).map((o) => [o.frequency.value, o.startAt])).toEqual([[midiToFreq(60), noteStart(0)]]);
   });
 
-  it('最後まで再生：クリックは 4 + 15×2 = 34 回（アクセントは1拍目だけ、終了時には鳴らない）、参考音は15音すべて実音で', async () => {
+  it('最後まで再生：クリックは 4 + 16×2 = 36 回（アクセントは1拍目だけ、終了時には鳴らない）、参考音は16音すべて実音で（最高音は2回）', async () => {
     const { ctx, player, runUntil } = setup();
     player.play(PARAMS);
     await flush();
     runUntil(END + 5);
-    expect(clicks(ctx).map((o) => o.frequency.value)).toEqual([1500, ...Array(33).fill(1000)]);
+    expect(clicks(ctx).map((o) => o.frequency.value)).toEqual([1500, ...Array(35).fill(1000)]);
     clicks(ctx).forEach((o, k) => expect(o.startAt).toBeCloseTo(0.05 + k, 9));
     expect(tones(ctx).map((o) => o.frequency.value)).toEqual(WRITTEN.map((m) => midiToFreq(m - 2)));
     tones(ctx).forEach((o, i) => expect(o.startAt).toBeCloseTo(noteStart(i), 9));
@@ -119,7 +119,7 @@ describe('createPlayer（SPEC 2.7）', () => {
     player.play({ ...PARAMS, bpm: 120 });
     await flush();
     runUntil(20);
-    expect(tones(ctx)).toHaveLength(15);
+    expect(tones(ctx)).toHaveLength(16);
     for (const o of tones(ctx)) expect(o.stopAt).toBeCloseTo(toneEnvelope(o.startAt!, 1).end, 9);
   });
 
@@ -157,14 +157,14 @@ describe('createPlayer（SPEC 2.7）', () => {
     expect(progress()).toEqual({ phase: 'playing', noteIndex: 0 });
   });
 
-  it('15音目が終わったら自動停止し、done（最終音）を残す', async () => {
+  it('16音目が終わったら自動停止し、done（最終音）を残す', async () => {
     const { player, advance, progress, intervals, pendingFrame } = setup();
     player.play(PARAMS);
     await flush();
     advance(END - 0.01);
-    expect(progress()).toEqual({ phase: 'playing', noteIndex: 14 });
+    expect(progress()).toEqual({ phase: 'playing', noteIndex: 15 });
     advance(END);
-    expect(progress()).toEqual({ phase: 'done', noteIndex: 14 });
+    expect(progress()).toEqual({ phase: 'done', noteIndex: 15 });
     expect(intervals.size).toBe(0);
     expect(pendingFrame()).toBe(false);
   });
@@ -188,9 +188,9 @@ describe('createPlayer（SPEC 2.7）', () => {
     expect(added[0]!.startAt).toBeCloseTo(END + 0.05, 9);
   });
 
-  it('15音でないデータは受け付けない', () => {
+  it('16音でないデータは受け付けない', () => {
     const { player } = setup();
-    expect(() => player.play({ ...PARAMS, writtenMidis: WRITTEN.slice(0, 14) })).toThrow();
+    expect(() => player.play({ ...PARAMS, writtenMidis: WRITTEN.slice(0, 15) })).toThrow();
   });
 });
 
@@ -273,7 +273,7 @@ describe('参考音の ON/OFF（再生中も切り替えられる。SPEC 2.4・2
     player.play(PARAMS);
     await flush();
     const { toneBus } = busesOf(ctx);
-    advance(noteStart(14) + 0.5);
+    advance(noteStart(15) + 0.5);
     store.setState({ toneEnabled: true });
     expect(toneBus.gain.calls.filter(([kind, value]) => kind === 'set' && value === 1)).toEqual([]);
   });

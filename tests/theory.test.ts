@@ -12,28 +12,28 @@ describe('theoreticalWrittenScale', () => {
   it('フルート ハ長調', () => {
     expect(theoreticalWrittenScale(getScaleKey('C_major'), flute, 72)).toEqual({
       ascending: midis('C5 D5 E5 F5 G5 A5 B5 C6'),
-      descending: midis('B5 A5 G5 F5 E5 D5 C5'),
+      descending: midis('C6 B5 A5 G5 F5 E5 D5 C5'),
     });
   });
 
   it('フルート ハ短調（上行＝旋律的短音階、下行＝自然短音階）', () => {
     expect(theoreticalWrittenScale(getScaleKey('C_minor'), flute, 72)).toEqual({
       ascending: midis('C5 D5 Eb5 F5 G5 A5 B5 C6'),
-      descending: midis('Bb5 Ab5 G5 F5 Eb5 D5 C5'),
+      descending: midis('C6 Bb5 Ab5 G5 F5 Eb5 D5 C5'),
     });
   });
 
   it('フルート 嬰ト短調（上行7音目は Fx）', () => {
     expect(theoreticalWrittenScale(getScaleKey('Gs_minor'), flute, 68)).toEqual({
       ascending: midis('G#4 A#4 B4 C#5 D#5 E#5 Fx5 G#5'),
-      descending: midis('F#5 E5 D#5 C#5 B4 A#4 G#4'),
+      descending: midis('G#5 F#5 E5 D#5 C#5 B4 A#4 G#4'),
     });
   });
 
   it('B♭トランペット 実音ハ長調 → 記譜ニ長調', () => {
     expect(theoreticalWrittenScale(getScaleKey('C_major'), getInstrument('bb_trumpet'), 62)).toEqual({
       ascending: midis('D4 E4 F#4 G4 A4 B4 C#5 D5'),
-      descending: midis('C#5 B4 A4 G4 F#4 E4 D4'),
+      descending: midis('D5 C#5 B4 A4 G4 F#4 E4 D4'),
     });
   });
 
@@ -49,16 +49,18 @@ describe('theoreticalWrittenScale', () => {
   });
 
   it.each(SCALE_KEYS.flatMap((k) => INSTRUMENTS.map((i) => [k.id, i.id, k, i] as const)))(
-    '%s × %s：15音の形と実音の主音',
+    '%s × %s：16音の形と実音の主音',
     (_, __, key, instrument) => {
       const { ascending, descending } = theoreticalWrittenScale(key, instrument, 60);
       expect(ascending).toHaveLength(8);
-      expect(descending).toHaveLength(7);
+      expect(descending).toHaveLength(8);
+      // 最高音は上行の最後と下行の最初で2回（PDF と同じ）
+      expect(descending[0]).toBe(ascending[7]);
       const line = [...ascending, ...descending];
       for (let i = 1; i < 8; i++) expect(line[i]!).toBeGreaterThan(line[i - 1]!);
-      for (let i = 8; i < 15; i++) expect(line[i]!).toBeLessThan(line[i - 1]!);
+      for (let i = 9; i < 16; i++) expect(line[i]!).toBeLessThan(line[i - 1]!);
       expect(ascending[7]! - ascending[0]!).toBe(12);
-      expect(descending[6]).toBe(ascending[0]);
+      expect(descending[7]).toBe(ascending[0]);
       expect((((ascending[0]! + instrument.transposition) % 12) + 12) % 12).toBe(key.tonicMidiClass);
     },
   );

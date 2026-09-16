@@ -1,9 +1,9 @@
 // アプリ状態のストアと subscribe（SPEC 7.4）。フレームワークは使わない。
 import type { InstrumentId } from '../data/instruments.ts';
-import type { NoteValue } from '../render/staff.ts';
+import type { NoteValue } from '../music/meter.ts';
 
-/** スケールの音数（上行8音＋下行7音） */
-export const NOTE_COUNT = 15;
+/** スケールの音数（上行8音＋下行8音。最高音は2回鳴らす） */
+export const NOTE_COUNT = 16;
 
 export type Phase = 'idle' | 'countin' | 'playing' | 'done';
 

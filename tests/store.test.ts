@@ -23,7 +23,7 @@ describe('AppState の既定値（SPEC 7.4）', () => {
       progress: { noteIndex: null, phase: 'idle' },
       previewIndex: null,
     });
-    expect(NOTE_COUNT).toBe(15);
+    expect(NOTE_COUNT).toBe(16);
   });
 });
 
@@ -83,15 +83,16 @@ describe('clampBpm（40〜160 BPM の整数）', () => {
 
 describe('いま／つぎの導出（SPEC 7.3）と五線譜のハイライト（SPEC 2.5）', () => {
   const playing = (i: number): Progress => ({ phase: 'playing', noteIndex: i });
-  const done: Progress = { phase: 'done', noteIndex: 14 };
+  const done: Progress = { phase: 'done', noteIndex: 15 };
 
   it.each([
     ['idle', IDLE, { now: null, next: 0 }, { current: null, next: null }],
     ['countin', COUNTIN, { now: null, next: 0 }, { current: null, next: 0 }],
     ['playing 0', playing(0), { now: 0, next: 1 }, { current: 0, next: 1 }],
     ['playing 7', playing(7), { now: 7, next: 8 }, { current: 7, next: 8 }],
-    ['playing 14', playing(14), { now: 14, next: 'end' }, { current: 14, next: null }],
-    ['done', done, { now: 14, next: 'end' }, { current: 14, next: null }],
+    ['playing 14', playing(14), { now: 14, next: 15 }, { current: 14, next: 15 }],
+    ['playing 15', playing(15), { now: 15, next: 'end' }, { current: 15, next: null }],
+    ['done', done, { now: 15, next: 'end' }, { current: 15, next: null }],
   ] as const)('%s', (_, progress, expectedNowNext, expectedHighlight) => {
     expect(nowNext(progress)).toEqual(expectedNowNext);
     expect(staffHighlight(progress)).toEqual(expectedHighlight);

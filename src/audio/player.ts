@@ -1,13 +1,13 @@
 // 再生の制御（SPEC 2.7）。AudioContext・先読みスケジューラ・requestAnimationFrame をまとめ、
 // store の progress を更新する。UI はこの progress だけを見て描画する（SPEC 7.1, 7.2）。
-import type { NoteValue } from '../render/staff.ts';
+import type { NoteValue } from '../music/meter.ts';
 import { COUNTIN, IDLE, NOTE_COUNT, isPlaying, type Store } from '../state/store.ts';
 import { audibleTime, onPageHidden, unlockAudio } from './context.ts';
 import { START_DELAY, buildEventTable, createLookaheadScheduler, progressAt, type Timer } from './scheduler.ts';
 import { scheduleClick, scheduleTone, toneFrequency } from './sounds.ts';
 
 export interface PlayParams {
-  /** 15音の記譜の MIDI 番号（上行8音 → 下行7音） */
+  /** 16音の記譜の MIDI 番号（上行8音 → 下行8音） */
   writtenMidis: readonly number[];
   /** 楽器の移調（実音 = 記譜 + transposition） */
   transposition: number;

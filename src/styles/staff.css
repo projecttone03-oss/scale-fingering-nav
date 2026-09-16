@@ -21,6 +21,7 @@
 }
 
 .staff .staff-lines,
+.staff .barlines,
 .staff .ledgers {
   color: var(--staff-line);
 }
