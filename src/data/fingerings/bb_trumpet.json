@@ -1,0 +1,86 @@
+{
+  "instrument": "bb_trumpet",
+  "family": "brass_valve",
+  "range": { "lowest": "F#3", "highest": "C6" },
+  "entries": {
+    "54": [{ "id": "std", "valves": [1, 2, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "55": [{ "id": "std", "valves": [1, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "56": [{ "id": "std", "valves": [2, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "57": [{ "id": "std", "valves": [1, 2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "58": [{ "id": "std", "valves": [1], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "59": [{ "id": "std", "valves": [2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "60": [{ "id": "std", "valves": [], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "61": [{ "id": "std", "valves": [1, 2, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "62": [{ "id": "std", "valves": [1, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "63": [{ "id": "std", "valves": [2, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "64": [{ "id": "std", "valves": [1, 2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "65": [{ "id": "std", "valves": [1], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "66": [
+      { "id": "std", "valves": [2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt123", "valves": [1, 2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "67": [
+      { "id": "std", "valves": [], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt13", "valves": [1, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "68": [{ "id": "std", "valves": [2, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "69": [{ "id": "std", "valves": [1, 2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "70": [
+      { "id": "std", "valves": [1], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt123", "valves": [1, 2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "71": [
+      { "id": "std", "valves": [2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt13", "valves": [1, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "72": [
+      { "id": "std", "valves": [], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt23", "valves": [2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "73": [
+      { "id": "std", "valves": [1, 2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt123", "valves": [1, 2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "74": [
+      { "id": "std", "valves": [1], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt13", "valves": [1, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "75": [
+      { "id": "std", "valves": [2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt23", "valves": [2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "76": [
+      { "id": "std", "valves": [], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt12", "valves": [1, 2], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt123", "valves": [1, 2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true }
+    ],
+    "77": [
+      { "id": "std", "valves": [1], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt13", "valves": [1, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true }
+    ],
+    "78": [
+      { "id": "std", "valves": [2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt23", "valves": [2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true },
+      { "id": "alt123", "valves": [1, 2, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "79": [
+      { "id": "std", "valves": [], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt12", "valves": [1, 2], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true },
+      { "id": "alt13", "valves": [1, 3], "isPrimary": false, "confidence": "verified", "sources": ["pdf"] }
+    ],
+    "80": [
+      { "id": "std", "valves": [2, 3], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt1", "valves": [1], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true }
+    ],
+    "81": [
+      { "id": "std", "valves": [1, 2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt2", "valves": [2], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true }
+    ],
+    "82": [
+      { "id": "std", "valves": [1], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] },
+      { "id": "alt0", "valves": [], "isPrimary": false, "confidence": "verified", "sources": ["pdf"], "hidden": true }
+    ],
+    "83": [{ "id": "std", "valves": [2], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }],
+    "84": [{ "id": "std", "valves": [], "isPrimary": true, "confidence": "verified", "sources": ["pdf"] }]
+  }
+}

@@ -1,0 +1,138 @@
+/* S2 メイン画面のレイアウト（SPEC 2.3）。縦 812px でスクロールなしに収まるよう、
+   いま／つぎ枠だけが残りの高さに合わせて伸び縮みする */
+
+#app {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding: 0 16px;
+}
+
+.s2-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+}
+.s2-instrument {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.s2-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.s2-header-actions .toggle {
+  min-height: 44px;
+  font-size: 0.8rem;
+}
+.s2-info {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--frame-border);
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: italic 700 1.1rem Georgia, serif;
+}
+
+.s2-settings {
+  flex: none;
+  display: grid;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+.s2-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.s2-settings select,
+.s2-settings button,
+.s2-settings input {
+  min-height: 44px;
+  font-size: 1rem;
+}
+.s2-settings select {
+  flex: 1;
+  min-width: 0;
+}
+.segmented {
+  display: flex;
+}
+.segmented button {
+  padding: 0 10px;
+  border: 1px solid var(--frame-border);
+  background: var(--frame-bg);
+  color: inherit;
+}
+.segmented button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.segmented button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+.segmented button[aria-pressed='true'],
+.toggle[aria-pressed='true'] {
+  background: var(--note-current-bg);
+  border-color: var(--note-current);
+  font-weight: 700;
+}
+.tempo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+.tempo input {
+  width: 3.2em;
+  text-align: center;
+}
+.tempo button {
+  min-width: 44px;
+}
+.toggle {
+  padding: 0 12px;
+  border: 1px solid var(--frame-border);
+  border-radius: 8px;
+  background: var(--frame-bg);
+  color: inherit;
+}
+
+.s2-staff {
+  flex: none;
+}
+.s2-staff .note {
+  cursor: pointer;
+}
+
+.s2-nownext {
+  flex: 1;
+  margin: 4px 0 0;
+}
+
+.s2-playbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 64px;
+}
+.play {
+  min-width: 132px;
+  min-height: 52px;
+  border: none;
+  border-radius: 26px;
+  background: var(--note-current);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.position {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}

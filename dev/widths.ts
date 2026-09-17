@@ -13,7 +13,6 @@ import {
   BPM_MAX,
   BPM_MIN,
   INITIAL_STATE,
-  NOTE_COUNT,
   clampBpm,
   createStore,
   isPlaying,
@@ -134,10 +133,7 @@ function render(state: AppState) {
   const { progress } = state;
   const playing = isPlaying(progress);
 
-  const highlight =
-    progress.phase === 'idle' && state.previewIndex !== null
-      ? { current: state.previewIndex, next: state.previewIndex < NOTE_COUNT - 1 ? state.previewIndex + 1 : null }
-      : staffHighlight(progress);
+  const highlight = staffHighlight(progress, state.previewIndex);
   applyStaffHighlight(app, highlight.current, highlight.next);
 
   playButton.textContent = playing ? '■ 停止' : '▶ 再生';

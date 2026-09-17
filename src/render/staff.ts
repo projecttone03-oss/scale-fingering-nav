@@ -170,20 +170,16 @@ export function stemEndY(step: number): number {
 // ---- 段 ----
 
 /** 臨時記号が符頭の左に張り出す幅（すき間を含む） */
-const accidentalExtent = (note: StaveNote) => (note.accidental ? ACCIDENTAL_GAP + glyphWidth(note.accidental) : 0);
+const accidentalExtent = (note: Pick<StaveNote, 'accidental'>) =>
+  note.accidental ? ACCIDENTAL_GAP + glyphWidth(note.accidental) : 0;
 
-/** 符頭の左端 headLeft に音符を描く */
-function renderNote(note: StaveNote, headLeft: number, clef: Clef, noteValue: NoteValue): string {
+/** 符頭の左端 headLeft に、音符の加線・臨時記号・符頭・符幹を描く */
+function noteParts(note: Pick<StaveNote, 'pitch' | 'accidental'>, headLeft: number, clef: Clef, noteValue: NoteValue): string {
   const step = staffStep(note.pitch, clef);
   const y = stepY(step);
 
   const headName = NOTEHEADS[noteValue];
   const headWidth = glyphWidth(headName);
-
-  // ハイライトの背景は、音符（臨時記号を含む）を囲む
-  const bgLeft = headLeft - accidentalExtent(note) - HIGHLIGHT_PAD;
-  const bgWidth = headLeft + headWidth + HIGHLIGHT_PAD - bgLeft;
-  const bg = `<rect class="note-bg" x="${r2(bgLeft)}" y="${S}" width="${r2(bgWidth)}" height="${S * 10}" rx="${S * 0.6}"/>`;
 
   // 加線は符頭の左右に LEDGER_EXTENSION はみ出す
   const ledgerSteps: number[] = [];
@@ -214,8 +210,18 @@ function renderNote(note: StaveNote, headLeft: number, clef: Clef, noteValue: No
     stem = `<path class="stem" d="M${sx} ${y1}V${r2(stemEndY(step))}" stroke="currentColor" stroke-width="${r2(STEM_THICKNESS)}"/>`;
   }
 
+  return `${ledgers}${accidental}${head}${stem}`;
+}
+
+/** 五線譜の音符。data-index を持ち、ハイライトの対象になる */
+function renderNote(note: StaveNote, headLeft: number, clef: Clef, noteValue: NoteValue): string {
+  // ハイライトの背景は、音符（臨時記号を含む）を囲む
+  const bgLeft = headLeft - accidentalExtent(note) - HIGHLIGHT_PAD;
+  const bgWidth = headLeft + glyphWidth(NOTEHEADS[noteValue]) + HIGHLIGHT_PAD - bgLeft;
+  const bg = `<rect class="note-bg" x="${r2(bgLeft)}" y="${S}" width="${r2(bgWidth)}" height="${S * 10}" rx="${S * 0.6}"/>`;
+
   const accidentalAttr = note.accidental ? ` data-accidental="${note.accidental}"` : '';
-  return `<g class="note" data-index="${note.index}" data-pitch="${note.pitch}"${accidentalAttr}>${bg}${ledgers}${accidental}${head}${stem}</g>`;
+  return `<g class="note" data-index="${note.index}" data-pitch="${note.pitch}"${accidentalAttr}>${bg}${noteParts(note, headLeft, clef, noteValue)}</g>`;
 }
 
 export interface NoteLayout {
@@ -308,14 +314,8 @@ export function layoutNotes(
 const barline = (x: number, thickness: number, cls: string) =>
   `<path class="${cls}" d="M${r2(x)} ${stepY(TOP_LINE)}V${stepY(0)}" stroke="currentColor" stroke-width="${r2(thickness)}"/>`;
 
-/**
- * 1段分の中身（<svg> の中に置く <g>）。音部記号・調号・拍子記号・音符を左から並べ、
- * 小節線と段の終わりの線を引く（SPEC 5.1, 5.6）
- */
-export function renderStave(notes: readonly StaveNote[], options: StaveOptions): string {
-  const { clef, keySignature, noteValue, width = STAVE_WIDTH, timeSignature = false, notesPerBar: perBar = 0, end = 'none' } =
-    options;
-
+/** 五線（幅 width）・音部記号・調号。rightEdge は最後の調号（なければ音部記号）の右端 */
+function staveBeginning(clef: Clef, keySignature: number, width: number) {
   const lines = [0, 2, 4, 6, 8].map((s) => `M0 ${stepY(s)}H${width}`).join('');
   const staffLines = `<g class="staff-lines">${strokePath(lines, STAFF_LINE_THICKNESS)}</g>`;
 
@@ -331,15 +331,26 @@ export function renderStave(notes: readonly StaveNote[], options: StaveOptions):
     .slice(0, count)
     .map((s, i) => glyph(sigMark, sigX + i * sigAdvance, stepY(s + CLEF_STEP_SHIFT[clef])))
     .join('');
-  /** 調号の後（調号がなければ音部記号の後）で、次のものを置き始める位置 */
-  const afterKeySig = count > 0 ? sigX + count * sigAdvance : sigX;
+  const rightEdge = count > 0 ? sigX + count * sigAdvance - KEY_SIG_GAP : sigX - CLEF_KEY_SIG_GAP;
+
+  return { staffLines, symbols: `${clefMarkup}<g class="key-signature">${keySig}</g>`, hasKeySignature: count > 0, sigX, rightEdge };
+}
+
+/**
+ * 1段分の中身（<svg> の中に置く <g>）。音部記号・調号・拍子記号・音符を左から並べ、
+ * 小節線と段の終わりの線を引く（SPEC 5.1, 5.6）
+ */
+export function renderStave(notes: readonly StaveNote[], options: StaveOptions): string {
+  const { clef, keySignature, noteValue, width = STAVE_WIDTH, timeSignature = false, notesPerBar: perBar = 0, end = 'none' } =
+    options;
+  const { staffLines, symbols, hasKeySignature, sigX, rightEdge } = staveBeginning(clef, keySignature, width);
 
   // 拍子記号 4/4：上の「4」は第4線、下の「4」は第2線を中心に置く
   let timeSig = '';
   /** 音符を並べ始める基準（拍子記号、なければ調号・音部記号の右端） */
-  let notesStart = count > 0 ? afterKeySig - KEY_SIG_GAP : keySigX(clef) - CLEF_KEY_SIG_GAP;
+  let notesStart = rightEdge;
   if (timeSignature) {
-    const x = count > 0 ? afterKeySig - KEY_SIG_GAP + KEY_TIME_GAP : sigX;
+    const x = hasKeySignature ? rightEdge + KEY_TIME_GAP : sigX;
     timeSig = `<g class="time-signature">${glyph('timeSig4', x, stepY(6))}${glyph('timeSig4', x, stepY(2))}</g>`;
     notesStart = x + glyphWidth('timeSig4');
   }
@@ -358,7 +369,33 @@ export function renderStave(notes: readonly StaveNote[], options: StaveOptions):
   }
   const barlines = bars.length ? `<g class="barlines">${bars.join('')}</g>` : '';
 
-  return `${staffLines}${barlines}${clefMarkup}<g class="key-signature">${keySig}</g>${timeSig}${noteMarkup}`;
+  return `${staffLines}${barlines}${symbols}${timeSig}${noteMarkup}`;
+}
+
+// ---- 楽譜断片（いま／つぎ枠、SPEC 5.5） ----
+
+/** 断片の上下に、本体の段（上下 4S）より足す余白。加線の多い音（フルートの C7 など）も収まるように */
+const SNIPPET_EXTRA_MARGIN = 2 * S;
+/** 断片の幅。調号7つと、臨時記号の付いた音符1つが収まる */
+export const SNIPPET_WIDTH = 18 * S;
+export const SNIPPET_HEIGHT = STAVE_HEIGHT + 2 * SNIPPET_EXTRA_MARGIN;
+
+/**
+ * 音符1つの楽譜断片（<svg>）。五線・音部記号・調号と、全音符の符頭1つ（符幹なし）。拍子記号・小節線は描かない。
+ * 音符（臨時記号を含む）は調号の後の余白の中央に置くが、5.7 の最初の符頭の位置より左には寄せない。
+ * 五線譜の音符ではないので data-index を持たず、ハイライトの対象にならない
+ */
+export function renderSnippet(note: Pick<StaveNote, 'pitch' | 'accidental'>, clef: Clef, keySignature: number, label = note.pitch): string {
+  const { staffLines, symbols, rightEdge } = staveBeginning(clef, keySignature, SNIPPET_WIDTH);
+  const extent = accidentalExtent(note);
+  const blockWidth = extent + glyphWidth('noteheadWhole');
+  const centered = (rightEdge + SNIPPET_WIDTH - blockWidth) / 2 + extent;
+  const headLeft = Math.max(centered, rightEdge + Math.max(FIRST_NOTE_GAP, FIRST_ACCIDENTAL_CLEAR + extent));
+  return (
+    `<svg class="staff snippet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SNIPPET_WIDTH} ${SNIPPET_HEIGHT}" role="img" aria-label="${label}">` +
+    `<g transform="translate(0 ${SNIPPET_EXTRA_MARGIN})">${staffLines}${symbols}<g class="snippet-note">${noteParts(note, headLeft, clef, 'whole')}</g></g>` +
+    `</svg>`
+  );
 }
 
 /**

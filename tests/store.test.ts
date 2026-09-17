@@ -20,6 +20,7 @@ describe('AppState の既定値（SPEC 7.4）', () => {
       bpm: 60,
       noteValue: 'half',
       toneEnabled: true,
+      showAlternateFingerings: false,
       progress: { noteIndex: null, phase: 'idle' },
       previewIndex: null,
     });
@@ -96,6 +97,14 @@ describe('いま／つぎの導出（SPEC 7.3）と五線譜のハイライト�
   ] as const)('%s', (_, progress, expectedNowNext, expectedHighlight) => {
     expect(nowNext(progress)).toEqual(expectedNowNext);
     expect(staffHighlight(progress)).toEqual(expectedHighlight);
+  });
+
+  it('停止中に予習表示の音があれば、その音を「現在」、次の音を「次」にする（最後の音は「次」なし）', () => {
+    expect(staffHighlight(IDLE, 5)).toEqual({ current: 5, next: 6 });
+    expect(staffHighlight(IDLE, 15)).toEqual({ current: 15, next: null });
+    // 再生中・終了後は予習表示を使わない
+    expect(staffHighlight(playing(3), 9)).toEqual({ current: 3, next: 4 });
+    expect(staffHighlight(done, 9)).toEqual({ current: 15, next: null });
   });
 
   it('isPlaying はカウントイン中と再生中だけ真', () => {

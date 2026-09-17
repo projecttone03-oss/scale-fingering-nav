@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 72">
+  <!-- B♭トランペットの運指図（独自デザイン、SPEC 4.7）。
+       3つのバルブを横一列の円で表し、各円の中央に番号 1・2・3 を書く。
+       直径 64、円どうしの間隔 16（直径の 0.25 倍）、線の太さ 6（直径の約 9%）。
+       押さえる要素（円）は class="key" と id（v1〜v3）を持つ。番号（class="label"）はその円の直後に置く
+       （押すバルブは円を塗りつぶして番号を白抜きにする。fingering.css の .key.pressed + .label） -->
+  <g font-size="36" text-anchor="middle">
+    <circle id="v1" class="key" cx="36" cy="36" r="32" stroke-width="6"/>
+    <text class="label" x="36" y="36" dy="0.36em">1</text>
+    <circle id="v2" class="key" cx="116" cy="36" r="32" stroke-width="6"/>
+    <text class="label" x="116" y="36" dy="0.36em">2</text>
+    <circle id="v3" class="key" cx="196" cy="36" r="32" stroke-width="6"/>
+    <text class="label" x="196" y="36" dy="0.36em">3</text>
+  </g>
+</svg>

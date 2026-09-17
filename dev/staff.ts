@@ -103,10 +103,7 @@ function render(state: AppState) {
   const playing = isPlaying(progress);
 
   // ハイライト：停止中は予習表示、それ以外は progress から（SPEC 2.5, 7.3）
-  const highlight =
-    progress.phase === 'idle' && state.previewIndex !== null
-      ? { current: state.previewIndex, next: state.previewIndex < NOTE_COUNT - 1 ? state.previewIndex + 1 : null }
-      : staffHighlight(progress);
+  const highlight = staffHighlight(progress, state.previewIndex);
   applyStaffHighlight(app, highlight.current, highlight.next);
 
   playButton.textContent = playing ? '■ 停止' : '▶ 再生';

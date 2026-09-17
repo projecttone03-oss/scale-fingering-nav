@@ -19,6 +19,8 @@ export interface AppState {
   bpm: number;
   noteValue: NoteValue;
   toneEnabled: boolean;
+  /** 「別の運指を表示」（SPEC 2.6）。オフなら主運指だけを表示する。端末に保存する（settings.ts） */
+  showAlternateFingerings: boolean;
   progress: Progress;
   /** 停止中に音符タップで予習表示する音 */
   previewIndex: number | null;
@@ -33,6 +35,7 @@ export const INITIAL_STATE: AppState = {
   bpm: 60,
   noteValue: 'half',
   toneEnabled: true,
+  showAlternateFingerings: false,
   progress: IDLE,
   previewIndex: null,
 };
@@ -101,10 +104,14 @@ export function nowNext(p: Progress): { now: number | null; next: number | 'end'
 
 /**
  * 五線譜のハイライト（SPEC 2.5）。再生前はなし、カウントイン中は先頭を「次」、
- * 再生中は今の音と次の音、終了後は最終音を「今」のまま残す
+ * 再生中は今の音と次の音、終了後は最終音を「今」のまま残す。
+ * 停止中（idle）に予習表示の音（previewIndex）があれば、その音を「今」、次の音を「次」にする
  */
-export function staffHighlight(p: Progress): { current: number | null; next: number | null } {
-  if (p.phase === 'idle') return { current: null, next: null };
+export function staffHighlight(p: Progress, previewIndex: number | null = null): { current: number | null; next: number | null } {
+  if (p.phase === 'idle') {
+    if (previewIndex === null) return { current: null, next: null };
+    return { current: previewIndex, next: previewIndex < NOTE_COUNT - 1 ? previewIndex + 1 : null };
+  }
   const { now, next } = nowNext(p);
   return { current: now, next: next === 'end' ? null : next };
 }

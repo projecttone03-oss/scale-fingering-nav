@@ -1,0 +1,26 @@
+/* 運指図（SPEC 4.7）。テンプレート SVG の .key が押さえる要素、.key.pressed が押している状態。
+   線の太さは図の寸法に合わせてテンプレートに書く */
+
+.fingering {
+  display: block;
+  color: var(--staff-ink);
+}
+
+/* 押していない要素は背景色の上に輪郭だけ、押している要素は塗りつぶす。色だけでなく形（塗り）でも区別する */
+.fingering .key {
+  fill: var(--color-bg);
+  stroke: currentColor;
+}
+.fingering .key.pressed {
+  fill: currentColor;
+}
+
+/* 番号は輪郭と同じ色。押している要素の番号は白抜き（塗りの上に背景色で書く） */
+.fingering .label {
+  fill: currentColor;
+  font-family: system-ui, -apple-system, 'Hiragino Sans', sans-serif;
+  font-weight: 700;
+}
+.fingering .key.pressed + .label {
+  fill: var(--color-bg);
+}
