@@ -1,0 +1,73 @@
+/* 音の切り替えの見せ方を3案並べて比べるページ（開発用）。3つの枠組が画面の高さを等分する */
+
+#app {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding: 8px 16px;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.controls select,
+.controls button,
+.controls input {
+  min-height: 44px;
+  font-size: 0.95rem;
+}
+.controls input {
+  width: 3.4em;
+  text-align: center;
+}
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.play {
+  min-width: 5em;
+  border: none;
+  border-radius: 22px;
+  background: var(--note-current);
+  color: #fff;
+  font-weight: 700;
+}
+.position {
+  min-width: 4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.case {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 8px;
+}
+.case h2 {
+  margin: 0 0 2px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+.pair {
+  flex: 1;
+  min-height: 0;
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}

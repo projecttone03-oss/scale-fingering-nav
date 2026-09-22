@@ -123,20 +123,39 @@ export interface NowNextView {
   setBeatClock(clock: BeatClock | null): void;
 }
 
-/** 音の切り替えのアニメーション（クロスフェード）の長さ（SPEC 2.6） */
-export const CROSSFADE_MS = 120;
+/** 音の切り替えのアニメーションの長さ（SPEC 2.6） */
+export const TRANSITION_MS = 120;
+
+/**
+ * 音が切り替わったときの見せ方（SPEC 2.6）。実機で3案を比べて slide に決めた（比較ページ dev/transitions.html）。
+ * - slide（既定）：前の中身が左へ出ていき、新しい中身が右から入る（枠の中だけ。外へはみ出す部分は見えない）
+ * - crossfade：前の中身を同じ位置で薄くし、新しい中身を浮かび上がらせる
+ * - valves：中身はすぐ入れ替え、状態が変わったバルブ（押す→離す、離す→押す）だけが一瞬ふくらんで戻る
+ */
+export type FrameTransition = 'slide' | 'crossfade' | 'valves';
+
+/** 押す・離すが変わったキー（運指図の data-key）。両方に入っていないものが変わったキー */
+export function changedKeys(before: readonly string[], after: readonly string[]): string[] {
+  return [...new Set([...before, ...after])].filter((key) => before.includes(key) !== after.includes(key));
+}
+
+/** valves でふくらむ大きさ。円どうしの間隔は直径の 0.25 倍なので、1.25 倍を超えると隣とくっつく */
+const VALVE_POP_SCALE = 1.2;
 
 export interface NowNextHandlers {
   /** 音の入った枠をタップしたとき（S3 で拡大） */
   onOpen(frame: FrameName, index: number): void;
   /** 枠の上で左右にスワイプしたとき（+1 次の音、-1 前の音）。停止中かどうかは呼ぶ側で確かめる */
   onSwipe(direction: 1 | -1): void;
+  /** 音の切り替えの見せ方（既定は slide。SPEC 2.6） */
+  transition?: FrameTransition;
 }
 
 /**
  * root に「いま」「つぎ」の2枠を作る。タップで onOpen、左右のスワイプで onSwipe を呼ぶ
  */
 export function mountNowNext(root: HTMLElement, initialSource: NowNextSource, handlers: NowNextHandlers): NowNextView {
+  const transition = handlers.transition ?? 'slide';
   root.classList.add('now-next');
   root.innerHTML = (['now', 'next'] as const)
     .map(
@@ -159,26 +178,53 @@ export function mountNowNext(root: HTMLElement, initialSource: NowNextSource, ha
   const framePulse = createBeatPulse(FRAME_PULSE);
   const pulseRing = root.querySelector<HTMLDivElement>('.nn-pulse')!;
 
+  const pressedKeys = (root: ParentNode) => [...root.querySelectorAll('.key.pressed')].map((key) => key.getAttribute('data-key') ?? '');
+
+  /** 前の中身を同じ位置に重ねる（slide・crossfade。アニメーションが終わったら外す） */
+  function addGhost(body: HTMLDivElement, view: HTMLDivElement): HTMLDivElement {
+    // 前の切り替えが残っていたら消してから重ねる
+    for (const old of body.querySelectorAll('.nn-ghost')) old.remove();
+    const ghost = view.cloneNode(true) as HTMLDivElement;
+    ghost.classList.add('nn-ghost');
+    ghost.setAttribute('aria-hidden', 'true');
+    body.append(ghost);
+    return ghost;
+  }
+
   /**
-   * 枠の中身を入れ替える。crossfade が真なら、前の中身を同じ位置に重ねたまま薄くし、
-   * 新しい中身を浮かび上がらせる（SPEC 2.6）。中身は動かさないので枠からはみ出さない。
+   * 枠の中身を入れ替える。animate が真なら、音の切り替えとして transition の見せ方で動かす（SPEC 2.6）。
+   * 動かすのは透明度と、枠の中だけの移動・拡大縮小で、レイアウトは変えない。
    * 動きを減らす設定のときは、アニメーションなしですぐ切り替える
    */
-  function show(name: FrameName, content: FrameContent, crossfade: boolean) {
+  function show(name: FrameName, content: FrameContent, animate: boolean) {
     const body = bodies[name];
     const view = body.querySelector<HTMLDivElement>('.nn-content')!;
-    const ghost = crossfade && !prefersReducedMotion() ? (view.cloneNode(true) as HTMLDivElement) : null;
+    const moving = animate && !prefersReducedMotion();
+    const options: KeyframeAnimationOptions = { duration: TRANSITION_MS, easing: 'ease-out' };
+    const before = moving && transition === 'valves' ? pressedKeys(view) : [];
+    const ghost = moving && transition !== 'valves' ? addGhost(body, view) : null;
+
     view.innerHTML = frameHtml(source, content, showAlternates);
+
     if (ghost) {
-      // 前の切り替えが残っていたら消してから重ねる
-      for (const old of body.querySelectorAll('.nn-ghost')) old.remove();
-      ghost.classList.add('nn-ghost');
-      ghost.setAttribute('aria-hidden', 'true');
-      body.append(ghost);
-      const options: KeyframeAnimationOptions = { duration: CROSSFADE_MS, easing: 'ease-out' };
       const remove = () => ghost.remove();
-      ghost.animate([{ opacity: 1 }, { opacity: 0 }], options).finished.then(remove, remove);
-      view.animate([{ opacity: 0 }, { opacity: 1 }], options);
+      const done = (animation: Animation) => animation.finished.then(remove, remove);
+      if (transition === 'crossfade') {
+        done(ghost.animate([{ opacity: 1 }, { opacity: 0 }], options));
+        view.animate([{ opacity: 0 }, { opacity: 1 }], options);
+      } else {
+        // 枠の中だけのスライド。前の中身は左へ出ていき、新しい中身は右から入る（枠の外へは出ない）
+        done(ghost.animate([{ transform: 'none' }, { transform: 'translateX(-100%)' }], options));
+        view.animate([{ transform: 'translateX(100%)' }, { transform: 'none' }], options);
+      }
+    } else if (moving) {
+      // 状態が変わったバルブ（押す→離す、離す→押す）だけを一瞬ふくらませる
+      for (const key of changedKeys(before, pressedKeys(view))) {
+        view.querySelector(`.key[data-key="${key}"]`)?.animate(
+          [{ transform: 'none' }, { transform: `scale(${VALVE_POP_SCALE})`, offset: 0.4 }, { transform: 'none' }],
+          options,
+        );
+      }
     }
     const index = content.kind === 'note' ? content.index : null;
     body.dataset.index = index === null ? '' : String(index);

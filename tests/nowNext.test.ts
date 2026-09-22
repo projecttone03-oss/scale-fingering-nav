@@ -10,6 +10,7 @@ import {
   isAdvance,
   noteFingerings,
   nowNextFrames,
+  changedKeys,
   nowNextSource,
   swipeDirection,
   type FrameContent,
@@ -66,6 +67,17 @@ describe('いま／つぎ枠のスワイプ（SPEC 2.6）', () => {
     expect(swipeDirection(-39, 0)).toBeNull();
     expect(swipeDirection(3, 2)).toBeNull();
     expect(swipeDirection(-60, 50)).toBeNull();
+  });
+});
+
+describe('音の切り替えの見せ方（SPEC 2.6）', () => {
+  it('案2：押す・離すが変わったバルブだけを動かす（変わらないバルブは動かさない）', () => {
+    // D4（1・3）→ E4（1・2）：2 と 3 が変わり、1 は変わらない
+    expect(changedKeys(['v1', 'v3'], ['v1', 'v2'])).toEqual(['v3', 'v2']);
+    // C5（開放）→ B4（2）
+    expect(changedKeys([], ['v2'])).toEqual(['v2']);
+    // 同じ運指（最高音の D5 が2回続くとき）は動かさない
+    expect(changedKeys(['v1'], ['v1'])).toEqual([]);
   });
 });
 

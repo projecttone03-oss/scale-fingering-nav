@@ -10,6 +10,9 @@
 .fingering .key {
   fill: var(--color-bg);
   stroke: currentColor;
+  /* 切り替えで一瞬ふくらませるとき（SPEC 2.6 の valves）、その要素の中心を基準にする */
+  transform-box: fill-box;
+  transform-origin: center;
 }
 .fingering .key.pressed {
   fill: currentColor;
