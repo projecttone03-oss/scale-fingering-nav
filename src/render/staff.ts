@@ -372,32 +372,6 @@ export function renderStave(notes: readonly StaveNote[], options: StaveOptions):
   return `${staffLines}${barlines}${symbols}${timeSig}${noteMarkup}`;
 }
 
-// ---- 楽譜断片（いま／つぎ枠、SPEC 5.5） ----
-
-/** 断片の上下に、本体の段（上下 4S）より足す余白。加線の多い音（フルートの C7 など）も収まるように */
-const SNIPPET_EXTRA_MARGIN = 2 * S;
-/** 断片の幅。調号7つと、臨時記号の付いた音符1つが収まる */
-export const SNIPPET_WIDTH = 18 * S;
-export const SNIPPET_HEIGHT = STAVE_HEIGHT + 2 * SNIPPET_EXTRA_MARGIN;
-
-/**
- * 音符1つの楽譜断片（<svg>）。五線・音部記号・調号と、全音符の符頭1つ（符幹なし）。拍子記号・小節線は描かない。
- * 音符（臨時記号を含む）は調号の後の余白の中央に置くが、5.7 の最初の符頭の位置より左には寄せない。
- * 五線譜の音符ではないので data-index を持たず、ハイライトの対象にならない
- */
-export function renderSnippet(note: Pick<StaveNote, 'pitch' | 'accidental'>, clef: Clef, keySignature: number, label = note.pitch): string {
-  const { staffLines, symbols, rightEdge } = staveBeginning(clef, keySignature, SNIPPET_WIDTH);
-  const extent = accidentalExtent(note);
-  const blockWidth = extent + glyphWidth('noteheadWhole');
-  const centered = (rightEdge + SNIPPET_WIDTH - blockWidth) / 2 + extent;
-  const headLeft = Math.max(centered, rightEdge + Math.max(FIRST_NOTE_GAP, FIRST_ACCIDENTAL_CLEAR + extent));
-  return (
-    `<svg class="staff snippet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SNIPPET_WIDTH} ${SNIPPET_HEIGHT}" role="img" aria-label="${label}">` +
-    `<g transform="translate(0 ${SNIPPET_EXTRA_MARGIN})">${staffLines}${symbols}<g class="snippet-note">${noteParts(note, headLeft, clef, 'whole')}</g></g>` +
-    `</svg>`
-  );
-}
-
 /**
  * スケール全体の2段（上段＝上行8音、下段＝下行8音。最高音は上段の最後と下段の最初の2か所）。
  * data-index は 0〜15。臨時記号は上行・下行を通した16音で SPEC 5.3 のルールを適用して決める。

@@ -64,6 +64,31 @@ describe('buildEventTable（SPEC 6.4）', () => {
     expect(events.filter((e) => e.accent).map((e) => e.beat)).toEqual([0]);
   });
 
+  it.each([
+    ['half', 5, 2],
+    ['whole', 15, 4],
+    ['quarter', 8, 1],
+  ] as [NoteValue, number, number][])('途中から（%s・%i音目の次から）：カウントイン4拍のあと、選んだ音から16音目までを鳴らして終わる（SPEC 2.7）', (value, start, bpn) => {
+    const events = buildEventTable(T0, 60, value, start);
+    // カウントインは毎回4拍（1拍目だけアクセント）
+    expect(events.filter((e) => e.kind === 'countin').map((e) => e.beat)).toEqual([0, 1, 2, 3]);
+    // 音は start〜15。最初の音はカウントインの直後（4拍目）から
+    const notes = notesOf(events);
+    expect(notes.map((n) => n.noteIndex)).toEqual(Array.from({ length: 16 - start }, (_, k) => start + k));
+    notes.forEach((note, k) => expect(note.time).toBeCloseTo(T0 + 4 + k * bpn, 9));
+    // 音の途中の拍もその音の noteIndex、end は 4 + (16 − start) × 音価の拍数
+    for (const e of events.filter((e) => e.kind === 'beat')) expect(e.noteIndex).toBe(start + Math.floor((e.beat - 4) / bpn));
+    expect(events.at(-1)).toMatchObject({ kind: 'end', beat: 4 + (16 - start) * bpn });
+    // 進行度：カウントイン中は開始位置、音の頭で五線譜の位置（start 以降）、最後は done（16音目）
+    expect(progressAt(events, T0 + 1)).toEqual({ phase: 'countin', noteIndex: start });
+    expect(progressAt(events, T0 + 4)).toEqual({ phase: 'playing', noteIndex: start });
+    expect(progressAt(events, events.at(-1)!.time)).toEqual({ phase: 'done', noteIndex: 15 });
+  });
+
+  it('開始位置が 0〜15 の整数でなければ例外', () => {
+    for (const start of [-1, 16, 2.5]) expect(() => buildEventTable(T0, 60, 'half', start)).toThrow('開始位置');
+  });
+
   it('長く再生しても誤差がたまらない（時刻を足し算で重ねない）', () => {
     const events = buildEventTable(0, 97, 'quarter');
     const end = events.at(-1)!;
@@ -76,11 +101,11 @@ describe('progressAt：時刻 → 進行度（SPEC 7.2・10.1）', () => {
   const noteTime = (i: number) => notesOf(events)[i]!.time;
   const EPS = 1e-9;
 
-  it('再生開始前とカウントイン中は countin', () => {
-    expect(progressAt(events, 0)).toEqual({ phase: 'countin', noteIndex: null });
-    expect(progressAt(events, T0)).toEqual({ phase: 'countin', noteIndex: null });
-    expect(progressAt(events, T0 + 3.5)).toEqual({ phase: 'countin', noteIndex: null });
-    expect(progressAt(events, noteTime(0) - EPS)).toEqual({ phase: 'countin', noteIndex: null });
+  it('再生開始前とカウントイン中は countin。noteIndex はこれから鳴らす最初の音（先頭から再生なら 0）', () => {
+    expect(progressAt(events, 0)).toEqual({ phase: 'countin', noteIndex: 0 });
+    expect(progressAt(events, T0)).toEqual({ phase: 'countin', noteIndex: 0 });
+    expect(progressAt(events, T0 + 3.5)).toEqual({ phase: 'countin', noteIndex: 0 });
+    expect(progressAt(events, noteTime(0) - EPS)).toEqual({ phase: 'countin', noteIndex: 0 });
   });
 
   it('音の切り替わりの瞬間は新しい音に入り、その直前は前の音のまま', () => {

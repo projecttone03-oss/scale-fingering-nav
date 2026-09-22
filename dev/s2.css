@@ -106,9 +106,6 @@
 .s2-staff {
   flex: none;
 }
-.s2-staff .note {
-  cursor: pointer;
-}
 
 .s2-nownext {
   flex: 1;
@@ -132,7 +129,27 @@
   font-size: 1.2rem;
   font-weight: 700;
 }
+.s2-position {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .position {
+  min-width: 4.2em;
   font-size: 1.2rem;
+  text-align: center;
   font-variant-numeric: tabular-nums;
+}
+.step {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--frame-border);
+  border-radius: 50%;
+  background: var(--frame-bg);
+  color: inherit;
+  font-size: 1rem;
+}
+/* 再生中は音を選べない（SPEC 2.5） */
+.step:disabled {
+  opacity: 0.35;
 }

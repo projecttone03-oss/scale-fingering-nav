@@ -1,7 +1,7 @@
 // S2 メイン画面を組み立てて確認するページ（開発用、本番ビルドには含まれない）。
 // 五線譜・いま／つぎ枠・S3 は本番のモジュールを使う。ヘッダー・設定行・再生バーは、M5 で src/ui/ に作るまでの仮のもの。
 // 「別の運指を表示」の切り替えも M5 の設定画面に置くまでの仮の場所（ヘッダー）。設定は localStorage に保存する。
-// 例：dev/s2.html?key=C_minor&value=quarter&bpm=90&current=5&open=now
+// 例：dev/s2.html?key=C_minor&value=quarter&bpm=90&current=5&open=now（current は選んだ音 0〜15）
 import '../src/styles/base.css';
 import '../src/styles/staff.css';
 import '../src/styles/fingering.css';
@@ -19,6 +19,7 @@ import type { InstrumentScales } from '../src/data/scales.ts';
 import type { NoteValue } from '../src/music/meter.ts';
 import { parsePitch } from '../src/music/pitch.ts';
 import { mountNowNext, nowNextSource } from '../src/render/nowNext.ts';
+import { createGuidePulse } from '../src/render/pulse.ts';
 import { applyStaffHighlight, renderScaleStaves } from '../src/render/staff.ts';
 import { loadSettings, persistSettings } from '../src/state/settings.ts';
 import {
@@ -30,9 +31,11 @@ import {
   createStore,
   isPlaying,
   staffHighlight,
+  stepSelection,
   type AppState,
 } from '../src/state/store.ts';
 import { createFingeringModal } from '../src/ui/modals.ts';
+import { attachStaffCursor } from '../src/ui/staffCursor.ts';
 
 const scales = trumpetScales as InstrumentScales;
 const fingerings = trumpetFingerings as InstrumentFingerings;
@@ -41,14 +44,14 @@ const keyIds = Object.keys(scales.scales);
 const VALUES: Record<NoteValue, string> = { whole: '全音符', half: '二分', quarter: '四分' };
 
 const params = new URLSearchParams(location.search);
-const previewParam = params.get('current');
+const selectedParam = params.get('current');
 const store = createStore({
   ...INITIAL_STATE,
   instrumentId: instrument.id,
   keyId: keyIds.find((id) => id === params.get('key')) ?? keyIds[0]!,
   noteValue: (Object.keys(VALUES) as NoteValue[]).find((v) => v === params.get('value')) ?? INITIAL_STATE.noteValue,
   bpm: params.has('bpm') ? clampBpm(Number(params.get('bpm'))) : INITIAL_STATE.bpm,
-  previewIndex: previewParam !== null && /^\d+$/.test(previewParam) ? Math.min(Number(previewParam), NOTE_COUNT - 1) : null,
+  selectedIndex: selectedParam !== null && /^\d+$/.test(selectedParam) ? Math.min(Number(selectedParam), NOTE_COUNT - 1) : null,
   ...loadSettings(),
 });
 persistSettings(store);
@@ -87,7 +90,11 @@ app.innerHTML = `
   <div class="s2-nownext"></div>
   <div class="s2-playbar">
     <button type="button" id="play" class="play">▶ 再生</button>
-    <span class="position" id="position"></span>
+    <div class="s2-position">
+      <button type="button" id="prevNote" class="step" aria-label="前の音を選ぶ">◀</button>
+      <span class="position" id="position"></span>
+      <button type="button" id="nextNote" class="step" aria-label="次の音を選ぶ">▶</button>
+    </div>
   </div>
 `;
 
@@ -99,15 +106,35 @@ const toneButton = $<HTMLButtonElement>('#tone');
 const alternatesButton = $<HTMLButtonElement>('#alternates');
 const playButton = $<HTMLButtonElement>('#play');
 const position = $<HTMLSpanElement>('#position');
+const stepButtons = [$<HTMLButtonElement>('#prevNote'), $<HTMLButtonElement>('#nextNote')];
 const staffBlock = $<HTMLDivElement>('.s2-staff');
 
 const scaleOf = (state: AppState) => scales.scales[state.keyId]!;
-const sourceOf = (state: AppState) => nowNextSource(scaleOf(state), instrument.clef, fingerings, trumpetTemplate);
+const sourceOf = (state: AppState) => nowNextSource(scaleOf(state), fingerings, trumpetTemplate);
 
 let source = sourceOf(store.getState());
-const nowNextView = mountNowNext($<HTMLDivElement>('.s2-nownext'), source, (frame, index) =>
-  modal.open(source, frame, index, store.getState().showAlternateFingerings),
-);
+
+/**
+ * 選ぶ音を変える（五線譜のカーソル・◀ ▶・スワイプ。SPEC 2.5）。再生中は受け付けない。
+ * 再生が終わって最終音が残っている（done）ときは、停止（idle）に戻してから選ぶ
+ */
+function select(index: number | null) {
+  const { progress } = store.getState();
+  if (isPlaying(progress)) return;
+  if (progress.phase === 'done') player.stop();
+  store.setState({ selectedIndex: index });
+}
+const step = (direction: 1 | -1) => {
+  if (isPlaying(store.getState().progress)) return;
+  select(stepSelection(store.getState().selectedIndex, direction));
+};
+
+const nowNextView = mountNowNext($<HTMLDivElement>('.s2-nownext'), source, {
+  onOpen: (frame, index) => modal.open(source, frame, index, store.getState().showAlternateFingerings),
+  onSwipe: step,
+});
+
+const guidePulse = createGuidePulse();
 
 function renderStaff(state: AppState) {
   staffBlock.innerHTML = renderScaleStaves(scaleOf(state), instrument.clef, state.noteValue);
@@ -117,14 +144,18 @@ function render(state: AppState) {
   const { progress } = state;
   const playing = isPlaying(progress);
 
-  const highlight = staffHighlight(progress, state.previewIndex);
+  const highlight = staffHighlight(progress, state.selectedIndex);
   applyStaffHighlight(staffBlock, highlight.current, highlight.next);
-  nowNextView.update(progress, state.previewIndex, state.showAlternateFingerings);
+  nowNextView.update(progress, state.selectedIndex, state.showAlternateFingerings);
+  // 拍に合わせた脈動（再生中だけ）。五線譜は現在音のガイド、カウントイン中は1音目（次の音）のガイド
+  nowNextView.setBeatClock(state.beatClock);
+  guidePulse.set(staffBlock, highlight.current ?? (progress.phase === 'countin' ? highlight.next : null), state.beatClock);
 
   keySelect.value = state.keyId;
   for (const button of valueButtons) button.setAttribute('aria-pressed', String(button.dataset.value === state.noteValue));
   // 再生中は調・音価・テンポを変えない（SPEC 2.4, 6.5）。参考音は再生中も切り替えられる
-  for (const control of [keySelect, ...valueButtons, bpmInput, $<HTMLButtonElement>('#slower'), $<HTMLButtonElement>('#faster')]) {
+  // 音を選ぶ操作（◀ ▶）も再生中は受け付けない
+  for (const control of [keySelect, ...valueButtons, bpmInput, $<HTMLButtonElement>('#slower'), $<HTMLButtonElement>('#faster'), ...stepButtons]) {
     control.disabled = playing;
   }
   if (document.activeElement !== bpmInput) bpmInput.value = String(state.bpm);
@@ -134,7 +165,9 @@ function render(state: AppState) {
   alternatesButton.textContent = `別の運指を表示 ${state.showAlternateFingerings ? 'ON' : 'OFF'}`;
 
   playButton.textContent = playing ? '■ 停止' : '▶ 再生';
-  position.textContent = `${progress.noteIndex === null ? '–' : progress.noteIndex + 1} / ${NOTE_COUNT}`;
+  // 「n / 16」は五線譜の位置で数える（停止中は選んだ音、カウントイン中は開始位置、再生中は今の音。SPEC 2.7）
+  const shown = progress.phase === 'idle' ? state.selectedIndex : progress.noteIndex;
+  position.textContent = `${shown === null ? '–' : shown + 1} / ${NOTE_COUNT}`;
 }
 
 store.subscribe((state, prev) => {
@@ -146,7 +179,7 @@ store.subscribe((state, prev) => {
   render(state);
 });
 
-keySelect.addEventListener('change', () => store.setState({ keyId: keySelect.value, previewIndex: null }));
+keySelect.addEventListener('change', () => store.setState({ keyId: keySelect.value, selectedIndex: null }));
 for (const button of valueButtons) {
   button.addEventListener('click', () => store.setState({ noteValue: button.dataset.value as NoteValue }));
 }
@@ -168,22 +201,26 @@ playButton.addEventListener('click', () => {
     player.stop();
     return;
   }
-  store.setState({ previewIndex: null });
+  // 選んだ音から再生する（選んでいなければ先頭から）。選んだ音は消さず、停止・終了後もその音に戻る（SPEC 2.7）。
   // クリック処理の中で play を呼ぶ（AudioContext の生成・resume がこの中で行われる）
   const writtenMidis = source.pitches.map((p) => parsePitch(p).midi);
-  player.play({ writtenMidis, transposition: instrument.transposition, bpm: state.bpm, noteValue: state.noteValue });
+  player.play({
+    writtenMidis,
+    transposition: instrument.transposition,
+    bpm: state.bpm,
+    noteValue: state.noteValue,
+    startIndex: state.selectedIndex ?? 0,
+  });
 });
 
-// 五線譜の音符をタップすると、その音を「いま」として表示する（停止中のみ、SPEC 2.5）。もう一度タップで解除
-staffBlock.addEventListener('click', (event) => {
-  const note = (event.target as Element).closest<SVGGElement>('.note');
-  if (!note) return;
-  const { progress, previewIndex } = store.getState();
-  if (isPlaying(progress)) return;
-  // 再生が終わって最終音が残っている（done）ときは、先頭（idle）に戻してから予習表示にする
-  if (progress.phase === 'done') player.stop();
-  const index = Number(note.dataset.index);
-  store.setState({ previewIndex: index === previewIndex ? null : index });
+stepButtons[0]!.addEventListener('click', () => step(-1));
+stepButtons[1]!.addEventListener('click', () => step(1));
+
+// 五線譜のカーソル：触れた位置に縦のバーを出し、指に合わせて動かして音を選ぶ（停止中のみ、SPEC 2.5）
+attachStaffCursor(staffBlock, {
+  isEnabled: () => !isPlaying(store.getState().progress),
+  getSelected: () => store.getState().selectedIndex,
+  select,
 });
 
 renderStaff(store.getState());

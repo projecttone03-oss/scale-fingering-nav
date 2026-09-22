@@ -1,7 +1,7 @@
 // 先読みスケジューラ（SPEC 6.4）と、時刻から進行度を引く関数（SPEC 7.2）。
 // ここは Web Audio にも DOM にも触れない。音を鳴らすのは onSchedule を渡す側（player.ts）。
 import { BEATS_PER_BAR, BEATS_PER_NOTE, type NoteValue } from '../music/meter.ts';
-import { NOTE_COUNT, type Progress } from '../state/store.ts';
+import { NOTE_COUNT, countIn, type Progress } from '../state/store.ts';
 
 export { BEATS_PER_NOTE };
 
@@ -37,9 +37,13 @@ export interface ScheduleEvent {
 
 /**
  * 再生開始時に一度だけ作るイベント表（時刻順）。拍 k の時刻は t0 + k × (60 / bpm) で、
- * 足し算を重ねないので長く再生しても誤差がたまらない
+ * 足し算を重ねないので長く再生しても誤差がたまらない。
+ * startIndex の音から16音目までを鳴らす（途中から始めても、カウントインは4拍で、最後まで行ったら終わる。SPEC 2.7）
  */
-export function buildEventTable(t0: number, bpm: number, noteValue: NoteValue): ScheduleEvent[] {
+export function buildEventTable(t0: number, bpm: number, noteValue: NoteValue, startIndex = 0): ScheduleEvent[] {
+  if (!Number.isInteger(startIndex) || startIndex < 0 || startIndex >= NOTE_COUNT) {
+    throw new Error(`開始位置が 0〜${NOTE_COUNT - 1} ではありません: ${startIndex}`);
+  }
   const secondsPerBeat = 60 / bpm;
   const beatsPerNote = BEATS_PER_NOTE[noteValue];
   const at = (beat: number) => t0 + beat * secondsPerBeat;
@@ -48,21 +52,22 @@ export function buildEventTable(t0: number, bpm: number, noteValue: NoteValue): 
   for (let beat = 0; beat < COUNT_IN_BEATS; beat++) {
     events.push({ beat, time: at(beat), kind: 'countin', accent: beat === 0 });
   }
-  for (let i = 0; i < NOTE_COUNT; i++) {
-    const start = COUNT_IN_BEATS + i * beatsPerNote;
+  for (let i = startIndex; i < NOTE_COUNT; i++) {
+    const start = COUNT_IN_BEATS + (i - startIndex) * beatsPerNote;
     events.push({ beat: start, time: at(start), kind: 'note', noteIndex: i, duration: beatsPerNote * secondsPerBeat });
     for (let b = 1; b < beatsPerNote; b++) {
       events.push({ beat: start + b, time: at(start + b), kind: 'beat', noteIndex: i });
     }
   }
-  const endBeat = COUNT_IN_BEATS + NOTE_COUNT * beatsPerNote;
+  const endBeat = COUNT_IN_BEATS + (NOTE_COUNT - startIndex) * beatsPerNote;
   events.push({ beat: endBeat, time: at(endBeat), kind: 'end' });
   return events;
 }
 
 /**
  * 時刻 time の進行度。time 以下で最後のイベントを二分探索で引く。
- * 音の切り替わりの瞬間（time がちょうど音の開始時刻）は新しい音に入る
+ * 音の切り替わりの瞬間（time がちょうど音の開始時刻）は新しい音に入る。
+ * カウントイン中の noteIndex は、これから鳴らす最初の音（開始位置）
  */
 export function progressAt(events: readonly ScheduleEvent[], time: number): Progress {
   let lo = 0;
@@ -78,7 +83,7 @@ export function progressAt(events: readonly ScheduleEvent[], time: number): Prog
     }
   }
   const event = events[found];
-  if (!event || event.kind === 'countin') return { phase: 'countin', noteIndex: null };
+  if (!event || event.kind === 'countin') return countIn(events[COUNT_IN_BEATS]?.noteIndex ?? 0);
   if (event.kind === 'end') return { phase: 'done', noteIndex: NOTE_COUNT - 1 };
   return { phase: 'playing', noteIndex: event.noteIndex! };
 }

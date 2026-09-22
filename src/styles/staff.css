@@ -36,6 +36,27 @@
 .staff .note.current .note-bg {
   fill: var(--note-current-bg);
 }
+/* 五線譜のカーソル（SPEC 2.5）。停止中に五線譜に触れているあいだだけ出る縦のバー。
+   ブラウザのスクロール・長押しメニュー・文字選択に指の動きを取られないようにする */
+.staff-selectable {
+  touch-action: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.staff .staff-cursor {
+  fill: var(--note-current);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* 拍に合わせた脈動（SPEC 2.5）。ガイドに重ねた矩形の opacity だけを動かす（普段は見えない） */
+.staff .note-pulse {
+  fill: var(--note-current);
+  opacity: 0;
+  pointer-events: none;
+}
 /* 色だけに頼らず、太さでも区別する（SPEC 11章） */
 .staff .note.current .head {
   stroke: currentColor;

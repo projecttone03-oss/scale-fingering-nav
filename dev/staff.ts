@@ -21,6 +21,7 @@ import {
   isPlaying,
   nowNext,
   staffHighlight,
+  stepSelection,
   type AppState,
 } from '../src/state/store.ts';
 
@@ -42,7 +43,7 @@ const store = createStore({
   keyId,
   noteValue: value,
   bpm: params.has('bpm') ? clampBpm(Number(params.get('bpm'))) : INITIAL_STATE.bpm,
-  previewIndex:
+  selectedIndex:
     initialPreview !== null && /^\d+$/.test(initialPreview) ? Math.min(Number(initialPreview), NOTE_COUNT - 1) : null,
 });
 const player = createPlayer(store);
@@ -75,7 +76,7 @@ app.innerHTML = `
   </p>
   <p id="status" style="font-variant-numeric:tabular-nums"></p>
   <p>
-    予習（停止中のみ）：<button id="prev">◀</button> <button id="next">▶</button> <button id="clear">解除</button>
+    選んだ音（停止中のみ。再生はこの音から）：<button id="prev">◀</button> <button id="next">▶</button> <button id="clear">解除</button>
   </p>
   <h2 style="font-size:1rem">スマホ幅（375px）</h2>
   <div style="width:375px;max-width:100%;border:1px dashed #999;box-sizing:border-box">${staff}</div>
@@ -103,7 +104,7 @@ function render(state: AppState) {
   const playing = isPlaying(progress);
 
   // ハイライト：停止中は予習表示、それ以外は progress から（SPEC 2.5, 7.3）
-  const highlight = staffHighlight(progress, state.previewIndex);
+  const highlight = staffHighlight(progress, state.selectedIndex);
   applyStaffHighlight(app, highlight.current, highlight.next);
 
   playButton.textContent = playing ? '■ 停止' : '▶ 再生';
@@ -124,9 +125,15 @@ playButton.addEventListener('click', () => {
     player.stop();
     return;
   }
-  store.setState({ previewIndex: null });
+  // 選んだ音から再生する（選んでいなければ先頭から。SPEC 2.7）。
   // クリック処理の中で play を呼ぶ（AudioContext の生成・resume がこの中で行われる）
-  player.play({ writtenMidis, transposition: instrument.transposition, bpm: state.bpm, noteValue: state.noteValue });
+  player.play({
+    writtenMidis,
+    transposition: instrument.transposition,
+    bpm: state.bpm,
+    noteValue: state.noteValue,
+    startIndex: state.selectedIndex ?? 0,
+  });
 });
 
 const setBpm = (bpm: number) => store.setState({ bpm: clampBpm(bpm) });
@@ -139,16 +146,15 @@ $<HTMLButtonElement>('#slower').addEventListener('click', () => setBpm(store.get
 $<HTMLButtonElement>('#faster').addEventListener('click', () => setBpm(store.getState().bpm + 5));
 toneInput.addEventListener('change', () => store.setState({ toneEnabled: toneInput.checked }));
 
-const movePreview = (delta: number) => {
-  const { previewIndex, progress } = store.getState();
-  // 再生が終わって最終音が残っている（done）ときは、先頭（idle）に戻してから予習表示にする
+const movePreview = (delta: 1 | -1) => {
+  const { selectedIndex, progress } = store.getState();
+  // 再生が終わって最終音が残っている（done）ときは、先頭（idle）に戻してから選ぶ
   if (progress.phase === 'done') player.stop();
-  const start = previewIndex ?? (delta > 0 ? -1 : NOTE_COUNT);
-  store.setState({ previewIndex: Math.min(NOTE_COUNT - 1, Math.max(0, start + delta)) });
+  store.setState({ selectedIndex: stepSelection(selectedIndex, delta) });
 };
 $<HTMLButtonElement>('#prev').addEventListener('click', () => movePreview(-1));
 $<HTMLButtonElement>('#next').addEventListener('click', () => movePreview(1));
-$<HTMLButtonElement>('#clear').addEventListener('click', () => store.setState({ previewIndex: null }));
+$<HTMLButtonElement>('#clear').addEventListener('click', () => store.setState({ selectedIndex: null }));
 
 function updateLinks(bpm: number) {
   for (const a of app.querySelectorAll<HTMLAnchorElement>('a.nav')) {

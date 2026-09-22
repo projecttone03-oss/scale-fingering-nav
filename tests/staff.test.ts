@@ -2,14 +2,10 @@ import { describe, expect, it } from 'vitest';
 import trumpet from '../src/data/scales/bb_trumpet.json';
 import type { InstrumentScales } from '../src/data/scales.ts';
 import {
-  SNIPPET_HEIGHT,
-  SNIPPET_WIDTH,
-  STAVE_HEIGHT,
   STAVE_WIDTH,
   applyStaffHighlight,
   layoutNotes,
   renderScaleStaves,
-  renderSnippet,
   renderStave,
   staffStep,
   stemEndY,
@@ -351,7 +347,7 @@ describe('拍子記号・小節線・終止線（SPEC 5.6）', () => {
     }
   });
 
-  it('renderStave は指定しなければ拍子記号・小節線を描かない（記号の見本・楽譜断片用）', () => {
+  it('renderStave は指定しなければ拍子記号・小節線を描かない（記号の見本用）', () => {
     const svg = renderStave([{ pitch: 'D4', index: 0, accidental: null }], { clef: 'treble', keySignature: 2, noteValue: 'half' });
     expect(svg).not.toContain('timeSig4');
     expect(svg).not.toContain('class="barline');
@@ -421,53 +417,6 @@ describe('段の幅と、収まらないときの縮め方（SPEC 5.7）', () =>
     const lower = renderStave(notes(8, { 1: accidental, 2: accidental }), { ...common, end: 'final' });
     const lastSig = Math.max(...[...lower.matchAll(/<text class="glyph (?:sharp|flat)" x="([\d.]+)"/g)].map((m) => Number(m[1])));
     expect(notesOf(lower)[0]!.head.x).toBeCloseTo(lastSig + sigWidth + 22, 1);
-  });
-});
-
-describe('楽譜断片（SPEC 5.5）', () => {
-  const headX = (svg: string) => Number(/<text class="glyph noteheadWhole head" x="([\d.]+)"/.exec(svg)![1]);
-
-  it('五線・音部記号・調号と全音符の符頭1つ。拍子記号・小節線・符幹は描かない', () => {
-    const svg = renderSnippet({ pitch: 'F#4', accidental: null }, 'treble', 2);
-    expect(svg).toMatch(new RegExp(`^<svg class="staff snippet" [^>]*viewBox="0 0 ${SNIPPET_WIDTH} ${SNIPPET_HEIGHT}"`));
-    expect(svg.match(/glyph sharp/g)).toHaveLength(2);
-    expect(svg.match(/notehead/g)).toHaveLength(1);
-    expect(svg).not.toContain('timeSig4');
-    expect(svg).not.toContain('barline');
-    expect(svg).not.toContain('class="stem"');
-    expect(svg).not.toContain('data-index');
-  });
-
-  it('本体の段より上下に広い（本体は上下 4 線間、断片は 6 線間）', () => {
-    expect(SNIPPET_HEIGHT).toBe(STAVE_HEIGHT + 40);
-    // 五線の位置を 2 線間下げる：第5線 y=40 → 60
-    expect(renderSnippet({ pitch: 'C5', accidental: null }, 'treble', 0)).toContain('<g transform="translate(0 20)">');
-  });
-
-  it('加線の多い音も断片の中に収まる（ト音記号の C7：上に加線5本、F3：下に加線3本）', () => {
-    for (const pitch of ['C7', 'A3', 'F3']) {
-      const svg = renderSnippet({ pitch, accidental: null }, 'treble', 0);
-      const y = Number(/<text class="glyph noteheadWhole head" x="[\d.]+" y="(-?[\d.]+)"/.exec(svg)![1]) + 20;
-      expect(y - 5, pitch).toBeGreaterThanOrEqual(0);
-      expect(y + 5, pitch).toBeLessThanOrEqual(SNIPPET_HEIGHT);
-    }
-  });
-
-  it('音符は調号の後の余白の中央に置く', () => {
-    // 調号なし：音部記号の右端 4 + 26.84 = 30.84 から右端 180 までの中央に、幅 16.88 の符頭
-    expect(headX(renderSnippet({ pitch: 'G4', accidental: null }, 'treble', 0))).toBeCloseTo((30.84 + 180 - 16.88) / 2, 1);
-  });
-
-  it('調号7つと臨時記号でも幅に収まり、調号から 2.2 線間以上離す', () => {
-    for (const keySignature of [7, -7]) {
-      for (const accidental of ['doubleSharp', 'doubleFlat'] as const) {
-        const svg = renderSnippet({ pitch: 'C5', accidental }, 'bass', keySignature);
-        const x = headX(svg);
-        const sigs = [...svg.matchAll(/<text class="glyph (sharp|flat)" x="([\d.]+)"/g)].map((m) => Number(m[2]) + (m[1] === 'sharp' ? 9.96 : 9.04));
-        expect(x - Math.max(...sigs)).toBeGreaterThanOrEqual(22 - 0.01);
-        expect(x + 16.88).toBeLessThanOrEqual(SNIPPET_WIDTH);
-      }
-    }
   });
 });
 

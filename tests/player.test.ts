@@ -18,6 +18,8 @@ const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 interface SetupOptions {
   unlock?: () => Promise<AudioContext>;
   audibleTime?: (ctx: AudioContext) => number;
+  /** 画面のアニメーションの時計（ミリ秒）。既定は音の時計と同じ進み（currentTime × 1000 + 5000） */
+  now?: (ctx: FakeAudioContext) => number;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -45,6 +47,7 @@ function setup(options: SetupOptions = {}) {
       hidden = callback;
       return () => {};
     },
+    now: () => (options.now ? options.now(ctx) : ctx.currentTime * 1000 + 5000),
     timer: {
       setInterval: (handler) => {
         intervals.set(nextTimer, handler);
@@ -82,7 +85,7 @@ describe('createPlayer（SPEC 2.7）', () => {
   it('再生ボタンで countin になり、カウントイン1拍目のアクセントから予約する', async () => {
     const { ctx, player, progress, intervals } = setup();
     player.play(PARAMS);
-    expect(progress()).toEqual({ phase: 'countin', noteIndex: null });
+    expect(progress()).toEqual({ phase: 'countin', noteIndex: 0 });
     await flush();
     expect(intervals.size).toBe(1);
     expect(clicks(ctx).map((o) => [o.frequency.value, o.startAt])).toEqual([[1500, 0.05]]);
@@ -186,6 +189,47 @@ describe('createPlayer（SPEC 2.7）', () => {
     const added = ctx.oscillators.slice(before);
     expect(added).toHaveLength(1);
     expect(added[0]!.startAt).toBeCloseTo(END + 0.05, 9);
+  });
+
+  it('選んだ音から再生する：カウントイン4拍のあと6音目（index 5）から鳴らし、16音目で終わる（SPEC 2.7）', async () => {
+    const { ctx, player, advance, runUntil, progress, store } = setup();
+    player.play({ ...PARAMS, startIndex: 5 });
+    // 押した直後からカウントイン。「つぎ」とガイドは選んだ音
+    expect(progress()).toEqual({ phase: 'countin', noteIndex: 5 });
+    await flush();
+
+    advance(3.5);
+    expect(progress()).toEqual({ phase: 'countin', noteIndex: 5 });
+    expect(tones(ctx)).toHaveLength(0);
+
+    // カウントインの直後（先頭から再生したときの1音目と同じ時刻）に、選んだ音が鳴る
+    advance(noteStart(0));
+    expect(progress()).toEqual({ phase: 'playing', noteIndex: 5 });
+    expect(tones(ctx).map((o) => [o.frequency.value, o.startAt])).toEqual([[midiToFreq(WRITTEN[5]! - 2), noteStart(0)]]);
+
+    advance(noteStart(1));
+    expect(progress()).toEqual({ phase: 'playing', noteIndex: 6 });
+
+    // 選んだ音から16音目までの11音。最後まで行ったら終わる（頭に戻らない）
+    const end = 4.05 + 2 * 11;
+    runUntil(end - 0.01);
+    expect(progress()).toEqual({ phase: 'playing', noteIndex: 15 });
+    runUntil(end + 5);
+    expect(progress()).toEqual({ phase: 'done', noteIndex: 15 });
+    expect(tones(ctx).map((o) => o.frequency.value)).toEqual(WRITTEN.slice(5).map((m) => midiToFreq(m - 2)));
+    expect(clicks(ctx)).toHaveLength(4 + 11 * 2);
+    // 脈動の拍の時刻は、カウントイン1拍目が起点のまま
+    player.stop();
+    expect(store.getState().beatClock).toBeNull();
+  });
+
+  it('startIndex を省略したら先頭から。0〜15 の整数でなければ受け付けない', async () => {
+    const { ctx, player, runUntil } = setup();
+    player.play(PARAMS);
+    await flush();
+    runUntil(END + 1);
+    expect(tones(ctx)).toHaveLength(16);
+    for (const startIndex of [-1, 16, 1.5]) expect(() => player.play({ ...PARAMS, startIndex })).toThrow('開始位置');
   });
 
   it('16音でないデータは受け付けない', () => {
@@ -360,6 +404,71 @@ describe('停止（SPEC 2.7-5・6.1）', () => {
     expect(progress().phase).toBe('idle');
     expect(intervals.size).toBe(0);
     expect(ctx.oscillators).toHaveLength(0);
+  });
+});
+
+describe('拍の時刻（beatClock。脈動のアニメーション用、SPEC 7.2）', () => {
+  it('再生開始で、カウントイン1拍目が耳に届く時刻（アニメーションの時計）と1拍の長さを置く', async () => {
+    const { store, player } = setup();
+    expect(store.getState().beatClock).toBeNull();
+    player.play(PARAMS);
+    await flush();
+    // 開始時：currentTime 0、アニメーションの時計 5000ms。1拍目は 0.05 秒後 → 5050ms
+    expect(store.getState().beatClock).toEqual({ origin: 5050, beatMs: 1000 });
+  });
+
+  it('出力遅延があれば、そのぶん後ろにずらす（耳に届く時刻）', async () => {
+    const { store, player } = setup({ audibleTime: (c) => c.currentTime - 0.2 });
+    player.play({ ...PARAMS, bpm: 120 });
+    await flush();
+    expect(store.getState().beatClock).toEqual({ origin: 5250, beatMs: 500 });
+  });
+
+  it('停止・自動停止で null に戻す（脈動を止める）', async () => {
+    const first = setup();
+    first.player.play(PARAMS);
+    await flush();
+    first.advance(noteStart(2));
+    first.player.stop();
+    expect(first.store.getState().beatClock).toBeNull();
+
+    const second = setup();
+    second.player.play(PARAMS);
+    await flush();
+    second.runUntil(END + 1);
+    expect(second.progress().phase).toBe('done');
+    expect(second.store.getState().beatClock).toBeNull();
+  });
+
+  it('音が切り替わったとき、ずれが 25ms を超えていたら合わせ直す（小さな揺れでは合わせ直さない）', async () => {
+    let offset = 5000;
+    const { store, player, advance } = setup({ now: (ctx) => ctx.currentTime * 1000 + offset });
+    player.play(PARAMS);
+    await flush();
+    const initial = store.getState().beatClock;
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    offset = 5020; // 20ms のずれ：合わせ直さない
+    advance(noteStart(0));
+    expect(store.getState().beatClock).toBe(initial);
+
+    offset = 5040; // 40ms のずれ：音の切り替わりで合わせ直す
+    advance(noteStart(0) + 0.5);
+    expect(store.getState().beatClock).toBe(initial); // 音が切り替わっていないフレームでは確かめない
+    advance(noteStart(1));
+    expect(store.getState().beatClock).toEqual({ origin: 5090, beatMs: 1000 });
+    expect(listener).toHaveBeenCalledTimes(3); // playing:0、playing:1、beatClock
+  });
+
+  it('毎フレームは beatClock を変えない（通知は音の切り替わりだけ）', async () => {
+    const { store, player, advance } = setup();
+    player.play(PARAMS);
+    await flush();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    for (let t = 4; t < noteStart(1) + 0.5; t += 0.016) advance(t);
+    expect(listener.mock.calls.map(([state, prev]) => state.beatClock === prev.beatClock)).toEqual([true, true]);
   });
 });
 

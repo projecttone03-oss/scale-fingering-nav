@@ -1,33 +1,51 @@
-/* いま／つぎ枠（SPEC 2.6）。いま＝枠エリアの 55%、つぎ＝40% */
+/* いま／つぎ枠（SPEC 2.6）。いま＝枠エリアの 54%、つぎ＝43%（すき間 3%） */
 
 .now-next {
   display: flex;
   justify-content: space-between;
   align-items: stretch;
   min-height: 0;
+  /* 横のスワイプはページではなく枠で受け取る（SPEC 2.6） */
+  touch-action: pan-y;
 }
 
 .nn-frame {
+  position: relative;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
-  padding: 4px 8px 2px;
+  /* 運指図は枠の幅いっぱいに描くので、左右の余白は最小にする */
+  padding: 4px 2px 2px;
   border: 2px solid var(--frame-border);
   border-radius: 12px;
   background: var(--frame-bg);
 }
 .nn-now {
-  width: 55%;
+  width: 54%;
   border-color: var(--note-current);
 }
 .nn-next {
-  width: 40%;
+  width: 43%;
+}
+
+/* 拍に合わせた脈動（SPEC 2.6）。枠線に重ねた輪の opacity だけを動かす（普段は見えない）。
+   拍の頭では枠線が外側へ 4px 太くなり、まわりがぼんやり光る */
+.nn-pulse {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--note-current);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 4px var(--note-current),
+    0 0 14px 4px var(--note-current);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .nn-title {
-  margin: 0;
+  margin: 0 6px;
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--color-muted);
@@ -36,18 +54,27 @@
   color: var(--note-current);
 }
 
-/* 枠の中身。音の切り替えでは、この要素ごと動かす（左上を基準に拡大縮小）。
-   音名・楽譜断片・運指図（下に「別の運指あり」）を縦に並べ、枠の高さの中に均等に配置する。
-   運指図は枠の幅いっぱいに描き、高さが足りないときは楽譜断片だけが縮む */
+/* 枠の中身。音の切り替えでは、前の中身（.nn-ghost）を同じ位置に重ねて薄くし、新しい中身を浮かび上がらせる。
+   中身は動かさないので枠からはみ出さない（はみ出さないことを確実にするため overflow も切る） */
 .nn-body {
+  position: relative;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+/* 音名と運指図（下に「別の運指あり」）を縦に並べ、枠の高さの中に均等に配置する */
+.nn-content {
   display: flex;
   flex-direction: column;
   justify-content: space-evenly;
+  height: 100%;
   min-height: 0;
-  container-type: inline-size;
-  transform-origin: top left;
-  border-radius: 8px;
+}
+.nn-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 .nn-body[role='button'] {
   cursor: pointer;
@@ -59,29 +86,17 @@
 
 .nn-name {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 3rem;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
   text-align: center;
   white-space: nowrap;
 }
 .nn-next .nn-name {
-  font-size: 1.3rem;
+  font-size: 2.4rem;
 }
 
-/* 楽譜断片は枠の幅いっぱい（18S × 16S の縦横比）を基本に、高さが足りなければ縦横比を保って縮む */
-.nn-snippet {
-  flex: 0 1 calc(100cqw * 16 / 18);
-  min-height: 0;
-}
-.nn-snippet .staff.snippet {
-  width: 100%;
-  height: 100%;
-}
-
-.nn-fingering {
-  flex: none;
-}
+/* 運指図は枠の幅いっぱい（高さは図の縦横比で決まる） */
 .nn-fingering .fingering {
   width: 100%;
   height: auto;

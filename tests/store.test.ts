@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  COUNTIN,
+  countIn,
   IDLE,
   INITIAL_STATE,
   NOTE_COUNT,
@@ -9,6 +9,7 @@ import {
   isPlaying,
   nowNext,
   staffHighlight,
+  stepSelection,
   type Progress,
 } from '../src/state/store.ts';
 
@@ -22,7 +23,8 @@ describe('AppState の既定値（SPEC 7.4）', () => {
       toneEnabled: true,
       showAlternateFingerings: false,
       progress: { noteIndex: null, phase: 'idle' },
-      previewIndex: null,
+      selectedIndex: null,
+      beatClock: null,
     });
     expect(NOTE_COUNT).toBe(16);
   });
@@ -88,7 +90,8 @@ describe('いま／つぎの導出（SPEC 7.3）と五線譜のハイライト�
 
   it.each([
     ['idle', IDLE, { now: null, next: 0 }, { current: null, next: null }],
-    ['countin', COUNTIN, { now: null, next: 0 }, { current: null, next: 0 }],
+    ['countin（先頭から）', countIn(0), { now: null, next: 0 }, { current: null, next: 0 }],
+    ['countin（6音目から）', countIn(5), { now: null, next: 5 }, { current: null, next: 5 }],
     ['playing 0', playing(0), { now: 0, next: 1 }, { current: 0, next: 1 }],
     ['playing 7', playing(7), { now: 7, next: 8 }, { current: 7, next: 8 }],
     ['playing 14', playing(14), { now: 14, next: 15 }, { current: 14, next: 15 }],
@@ -99,15 +102,26 @@ describe('いま／つぎの導出（SPEC 7.3）と五線譜のハイライト�
     expect(staffHighlight(progress)).toEqual(expectedHighlight);
   });
 
-  it('停止中に予習表示の音があれば、その音を「現在」、次の音を「次」にする（最後の音は「次」なし）', () => {
+  it('停止中に選んだ音があれば、その音を「現在」、次の音を「次」にする（最後の音は「次」なし）', () => {
     expect(staffHighlight(IDLE, 5)).toEqual({ current: 5, next: 6 });
     expect(staffHighlight(IDLE, 15)).toEqual({ current: 15, next: null });
-    // 再生中・終了後は予習表示を使わない
+    // 再生中・終了後は選んだ音を使わない
     expect(staffHighlight(playing(3), 9)).toEqual({ current: 3, next: 4 });
     expect(staffHighlight(done, 9)).toEqual({ current: 15, next: null });
   });
 
+  it('stepSelection：次へは未選択なら1音目、最後の音で止まる。前へは1音目より前で未選択（先頭から）に戻る', () => {
+    expect(stepSelection(null, 1)).toBe(0);
+    expect(stepSelection(0, 1)).toBe(1);
+    expect(stepSelection(14, 1)).toBe(15);
+    expect(stepSelection(15, 1)).toBe(15);
+    expect(stepSelection(15, -1)).toBe(14);
+    expect(stepSelection(1, -1)).toBe(0);
+    expect(stepSelection(0, -1)).toBeNull();
+    expect(stepSelection(null, -1)).toBeNull();
+  });
+
   it('isPlaying はカウントイン中と再生中だけ真', () => {
-    expect([IDLE, COUNTIN, playing(3), done].map(isPlaying)).toEqual([false, true, true, false]);
+    expect([IDLE, countIn(0), playing(3), done].map(isPlaying)).toEqual([false, true, true, false]);
   });
 });

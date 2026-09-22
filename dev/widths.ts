@@ -133,7 +133,7 @@ function render(state: AppState) {
   const { progress } = state;
   const playing = isPlaying(progress);
 
-  const highlight = staffHighlight(progress, state.previewIndex);
+  const highlight = staffHighlight(progress, state.selectedIndex);
   applyStaffHighlight(app, highlight.current, highlight.next);
 
   playButton.textContent = playing ? '■ 停止' : '▶ 再生';
@@ -148,9 +148,15 @@ playButton.addEventListener('click', () => {
     player.stop();
     return;
   }
-  store.setState({ previewIndex: null });
+  // 選んだ音から再生する（選んでいなければ先頭から。SPEC 2.7）。
   // クリック処理の中で play を呼ぶ（AudioContext の生成・resume がこの中で行われる）
-  player.play({ writtenMidis, transposition: instrument.transposition, bpm: state.bpm, noteValue: state.noteValue });
+  player.play({
+    writtenMidis,
+    transposition: instrument.transposition,
+    bpm: state.bpm,
+    noteValue: state.noteValue,
+    startIndex: state.selectedIndex ?? 0,
+  });
 });
 
 // 調・音価を変えたらページを読み込み直す（テンポは引き継ぐ）
@@ -165,16 +171,16 @@ bpmInput.addEventListener('change', () => {
   bpmInput.value = String(store.getState().bpm);
 });
 
-// 音符のタップで予習表示（停止中のみ）。3つの楽譜は同じ data-index を持つので、どれをタップしてもそろう
+// 音符のタップで音を選ぶ（停止中のみ。この比較ページだけの簡易な操作）。3つの楽譜は同じ data-index を持つので、どれをタップしてもそろう
 app.addEventListener('click', (event) => {
   const note = (event.target as Element).closest<SVGGElement>('.note');
   if (!note) return;
-  const { progress, previewIndex } = store.getState();
+  const { progress, selectedIndex } = store.getState();
   if (isPlaying(progress)) return;
-  // 再生が終わって最終音が残っている（done）ときは、先頭（idle）に戻してから予習表示にする
+  // 再生が終わって最終音が残っている（done）ときは、先頭（idle）に戻してから選ぶ
   if (progress.phase === 'done') player.stop();
   const index = Number(note.dataset.index);
-  store.setState({ previewIndex: index === previewIndex ? null : index });
+  store.setState({ selectedIndex: index === selectedIndex ? null : index });
 });
 
 store.subscribe((state) => render(state));

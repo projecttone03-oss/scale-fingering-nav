@@ -9,8 +9,20 @@ export type Phase = 'idle' | 'countin' | 'playing' | 'done';
 
 /** UI が参照する唯一の進行度（SPEC 7.1） */
 export interface Progress {
+  /** 再生中・終了後は今の音。カウントイン中は、これから鳴らす最初の音（開始位置）。停止中は null */
   noteIndex: number | null;
   phase: Phase;
+}
+
+/**
+ * 拍の時刻（SPEC 7.2）。拍に合わせた脈動のアニメーションだけに使う（音・ハイライトの同期には使わない）。
+ * 再生開始時に player が決め、停止・終了で null に戻す
+ */
+export interface BeatClock {
+  /** カウントイン1拍目が耳に届く時刻（ミリ秒。performance.now()・document.timeline と同じ基準） */
+  origin: number;
+  /** 1拍の長さ（ミリ秒） */
+  beatMs: number;
 }
 
 export interface AppState {
@@ -22,12 +34,15 @@ export interface AppState {
   /** 「別の運指を表示」（SPEC 2.6）。オフなら主運指だけを表示する。端末に保存する（settings.ts） */
   showAlternateFingerings: boolean;
   progress: Progress;
-  /** 停止中に音符タップで予習表示する音 */
-  previewIndex: number | null;
+  /** 停止中に五線譜で選んだ音（SPEC 2.5）。「いま」に表示し、再生はこの音から始める。null なら先頭から */
+  selectedIndex: number | null;
+  /** 再生中の拍の時刻（脈動用）。停止中は null */
+  beatClock: BeatClock | null;
 }
 
 export const IDLE: Progress = { noteIndex: null, phase: 'idle' };
-export const COUNTIN: Progress = { noteIndex: null, phase: 'countin' };
+/** カウントイン中。startIndex はこれから鳴らす最初の音 */
+export const countIn = (startIndex = 0): Progress => ({ noteIndex: startIndex, phase: 'countin' });
 
 export const INITIAL_STATE: AppState = {
   instrumentId: null,
@@ -37,7 +52,8 @@ export const INITIAL_STATE: AppState = {
   toneEnabled: true,
   showAlternateFingerings: false,
   progress: IDLE,
-  previewIndex: null,
+  selectedIndex: null,
+  beatClock: null,
 };
 
 export const BPM_MIN = 40;
@@ -87,12 +103,13 @@ export function createStore(initial: AppState = INITIAL_STATE): Store {
   };
 }
 
-/** いま／つぎ（SPEC 7.3）。next の 'end' は「おわり」 */
+/** いま／つぎ（SPEC 7.3）。next の 'end' は「おわり」。カウントイン中の「つぎ」は開始位置の音 */
 export function nowNext(p: Progress): { now: number | null; next: number | 'end' } {
   switch (p.phase) {
     case 'idle':
-    case 'countin':
       return { now: null, next: 0 };
+    case 'countin':
+      return { now: null, next: p.noteIndex ?? 0 };
     case 'playing': {
       const i = p.noteIndex ?? 0;
       return { now: i, next: i < NOTE_COUNT - 1 ? i + 1 : 'end' };
@@ -103,15 +120,25 @@ export function nowNext(p: Progress): { now: number | null; next: number | 'end'
 }
 
 /**
- * 五線譜のハイライト（SPEC 2.5）。再生前はなし、カウントイン中は先頭を「次」、
+ * 五線譜のハイライト（SPEC 2.5）。再生前はなし、カウントイン中は開始位置の音を「次」、
  * 再生中は今の音と次の音、終了後は最終音を「今」のまま残す。
- * 停止中（idle）に予習表示の音（previewIndex）があれば、その音を「今」、次の音を「次」にする
+ * 停止中（idle）に選んだ音（selectedIndex）があれば、その音を「今」、次の音を「次」にする
  */
-export function staffHighlight(p: Progress, previewIndex: number | null = null): { current: number | null; next: number | null } {
+export function staffHighlight(p: Progress, selectedIndex: number | null = null): { current: number | null; next: number | null } {
   if (p.phase === 'idle') {
-    if (previewIndex === null) return { current: null, next: null };
-    return { current: previewIndex, next: previewIndex < NOTE_COUNT - 1 ? previewIndex + 1 : null };
+    if (selectedIndex === null) return { current: null, next: null };
+    return { current: selectedIndex, next: selectedIndex < NOTE_COUNT - 1 ? selectedIndex + 1 : null };
   }
   const { now, next } = nowNext(p);
   return { current: now, next: next === 'end' ? null : next };
+}
+
+/**
+ * 選んだ音を前後に1つ動かす（再生バーの ◀ ▶、いま／つぎ枠のスワイプ。SPEC 2.5）。
+ * 次へ：未選択なら1音目、最後の音ではそのまま。前へ：1音目より前は未選択（先頭から・「▶で開始」）に戻す
+ */
+export function stepSelection(selectedIndex: number | null, delta: 1 | -1): number | null {
+  if (delta > 0) return selectedIndex === null ? 0 : Math.min(NOTE_COUNT - 1, selectedIndex + 1);
+  if (selectedIndex === null || selectedIndex === 0) return null;
+  return selectedIndex - 1;
 }
